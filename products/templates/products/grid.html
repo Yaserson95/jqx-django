@@ -1,0 +1,21 @@
+{% extends 'main\base.html' %}
+{% load static %}
+
+{% block extra_js %}
+<script src="{% static 'js/jqx/jqxgrid.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxgrid.filter.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxgrid.sort.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxgrid.selection.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxscrollbar.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxbuttons.js' %}" type="text/javascript"></script>
+
+<script src="{% static 'js/jqx/jqxdropdownlist.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxmenu.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxlistbox.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxcheckbox.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/products/grid.js' %}" type="text/javascript"></script>
+{% endblock %}	
+
+{% block content %}
+<div id="products-grid"></div>
+{% endblock %}
