@@ -7,6 +7,11 @@ function pop_attr(obj, name, def=null){
 	return def;
 }
 
+function set_default(obj, name, def=null){
+	if(obj[name] === undefined)
+		obj[name] = def;
+}
+
 class MasterWidget{
 	constructor(target, options){
 		this.target = $(target);
@@ -18,7 +23,9 @@ class MasterWidget{
 		this.attrs = options;
 	}
 
-	render(){}
+	render(){
+		this.jqx(this.attrs);
+	}
 
 	jqx(...args){
 		if(typeof this.jqx_type !== 'string')
@@ -40,8 +47,6 @@ class MasterLoadedWidget extends MasterWidget{
 		var autoload = this.attrs.autoload || false;
 		var request_opts = typeof this.attrs.request === 'object'?
 			this.attrs.request: {'method': 'GET'};
-
-		super.render();
 		
 		request_opts.success = (data)=>{
 			this.showSpinner(false);
@@ -56,6 +61,8 @@ class MasterLoadedWidget extends MasterWidget{
 		this.attrs.request = request_opts;
 		if(autoload)
 			this.load();
+
+		super.render();
 	}
 
 	load(){
@@ -70,3 +77,15 @@ class MasterLoadedWidget extends MasterWidget{
 	}
 	showSpinner(show=true){}
 }
+
+(jQuery)(function($){
+	$.fn.inParents = function(elem){
+		var parents = this.parents().toArray();
+		for(var i in parents){
+			if(elem === parents[i]){
+				return true;
+			}
+		}
+		return false;
+	}
+});

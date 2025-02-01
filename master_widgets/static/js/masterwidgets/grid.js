@@ -14,8 +14,8 @@ class MasterGrid extends MasterWidget{
 		this.source = pop_attr(opts, 'source', '/');
 		this.id = pop_attr(opts, 'id', 'id');
 		this.root = pop_attr(opts, 'root', 'results');
-		this.pagination = pop_attr(opts, 'pagination');
 		this.sorting = pop_attr(opts, 'sorting');
+		this.header_menu = pop_attr(opts, 'headerMenu', false);
 		this.jqx_type = 'jqxGrid';
 		super.init(this.__initGridOptions(opts));
 	}
@@ -49,7 +49,7 @@ class MasterGrid extends MasterWidget{
 		config.columns = this.__initColumns(config.columns);
 		if(config.pagesize){
 			config.pageable = true;
-            config.pagesizeoptions = [config.pagesize];
+            set_default(config, 'pagesizeoptions', [config.pagesize]);
         }
 
 		return config;
@@ -79,15 +79,19 @@ class MasterGrid extends MasterWidget{
                 adapter.totalrecords = data.count;
             }
         }
-
-
         return adapter;
 	}
-
 	render(){
 		super.render();
-		this.jqx(this.attrs);
+		if(this.header_menu){
+			this.renderHeaderMenu($(this.target.find('.jqx-grid-heade')[0]));
+		}
 	}
+	renderHeaderMenu(header){
+		var menu_target = $('<div/>', {'class': 'grid-header-menu'}).appendTo(this.target);
+		return new MasterContextMenu(menu_target, this.headerMenuOptions(header));
+	}
+
 	rendergridrows(params, grid){
 		return params.data;
 	}
@@ -121,5 +125,24 @@ class MasterGrid extends MasterWidget{
 	}
 	onSort(){
 		this.jqx('updatebounddata', 'sort');
+	}
+
+	headerMenuOptions(header){
+		return{
+			'element': header,
+			'items': [
+				{
+					'label':'Показывать столбцы', 
+					'items': this.attrs.columns.map(col => ({
+						'label': col.text,
+						'datafield': col.datafield
+					})),
+				}
+			],
+		};
+	}
+
+	rowMenuOptions(){
+		return {};
 	}
 }

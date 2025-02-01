@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 class MasterGridViewSet(viewsets.ModelViewSet):
     pagination_class = MasterPagination
+    extra: dict
     
     class Meta:
         abstract = True
@@ -122,7 +123,6 @@ class MasterGridViewSet(viewsets.ModelViewSet):
             
         return queryset
 
-    
     def list(self, request, *args, **kwargs):
         # Получаем стандартный ответ
         response = super().list(request, *args, **kwargs)
@@ -141,4 +141,6 @@ class MasterGridViewSet(viewsets.ModelViewSet):
     def grid_config(self, request, *args, **kwargs):
         config = jqx_grid_config(self.get_serializer())
         config['pagesize'] = self.paginator.max_page_size
+        if hasattr(self, 'extra'):
+            config.update(self.extra)
         return Response(data=config)

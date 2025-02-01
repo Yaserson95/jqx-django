@@ -15,16 +15,17 @@ class ProductViewSet(MasterGridViewSet):
     search_fields = ['name', 'category__name']
     ordering_fields = ['name', 'price', 'category__name', 'created_at']
     ordering = ['-created_at']
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    
+    permission_classes = [IsAuthenticatedOrReadOnly]    
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    
+
     # Поиск
     search_fields = ['name', 'category']
     
     # Сортировка
     ordering_fields = '__all__'
     ordering = ['-created_at']
+
+    extra = {'pagermode': 'simple', 'headerMenu': True}
     
     def get_queryset(self):
         # Фильтрация по имени
