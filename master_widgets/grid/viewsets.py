@@ -140,4 +140,5 @@ class MasterGridViewSet(viewsets.ModelViewSet):
     @action(url_path='config', url_name='grid_config', methods=['GET', 'OPTIONS'], detail=False)
     def grid_config(self, request, *args, **kwargs):
         config = jqx_grid_config(self.get_serializer())
+        config['pagesize'] = self.paginator.max_page_size
         return Response(data=config)

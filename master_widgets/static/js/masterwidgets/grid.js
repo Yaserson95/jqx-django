@@ -47,14 +47,16 @@ class MasterGrid extends MasterWidget{
 		}
 		config.source = new $.jqx.dataAdapter(this.__adapterOptions(config));
 		config.columns = this.__initColumns(config.columns);
-		if(config.pagesize)
+		if(config.pagesize){
 			config.pageable = true;
+            config.pagesizeoptions = [config.pagesize];
+        }
 
 		return config;
 	}
 	__adapterOptions(config){
 		var T = this;
-		return {
+		var adapter =  {
 			datatype: "json",
 			cache: false,
 			datafields: this.__initDatafields(config.columns),
@@ -71,6 +73,15 @@ class MasterGrid extends MasterWidget{
 				T.onFilter(this);
 			}
 		};
+
+        if(config.pagesize){
+            adapter.beforeprocessing = function (data) {
+                adapter.totalrecords = data.count;
+            }
+        }
+
+
+        return adapter;
 	}
 
 	render(){

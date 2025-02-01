@@ -52,7 +52,6 @@ def jqx_grid_config(serializer)->dict:
     config = {
         'columns': [],
         'sorting': {'default': '-created_at'},
-        'pagination': {'defaultPageSize': 20}
     }
 
     for field_name, field in flat_fields.items():

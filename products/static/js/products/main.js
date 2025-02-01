@@ -12,6 +12,8 @@
 				'sortable': true,
 				'source': '/products/grid/',
 				'virtualmode': true,
+				'columnsresize': true,
+				'columnsautoresize': true,
 			}
 		});
 	});

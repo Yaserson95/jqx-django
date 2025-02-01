@@ -14,18 +14,21 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = '__all__'
         grid_config = {
+            'id':{'hidden': True},
             'name': {
-                'width': 250,
+                'width': '45%',
                 'filter': {'type': 'textbox'}
             },
             'price': {
+                'width': '15%',
                 'format': 'c2',
                 'filter': {'type': 'numberinput'}
             },
             'in_stock': {
+                'width': '10%',
                 'columntype': 'checkbox'
             },
-            'category__name': {'label': 'Категория', 'filtertype': 'list'},
+            'category__name': {'label': 'Категория', 'filtertype': 'list', 'width': '20%',},
             'category__priority': {'hidden': True},
             'category__id': {'hidden': True}
         }
