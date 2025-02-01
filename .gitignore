@@ -1,2 +1,5 @@
 /static/js/jqx
 /static/css/jqx
+/.env
+__pycache__
+*.pyc

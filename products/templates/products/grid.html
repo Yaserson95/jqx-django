@@ -2,18 +2,22 @@
 {% load static %}
 
 {% block extra_js %}
+<!-- jqWidgets scripts-->
 <script src="{% static 'js/jqx/jqxgrid.js' %}" type="text/javascript"></script>
 <script src="{% static 'js/jqx/jqxgrid.filter.js' %}" type="text/javascript"></script>
 <script src="{% static 'js/jqx/jqxgrid.sort.js' %}" type="text/javascript"></script>
 <script src="{% static 'js/jqx/jqxgrid.selection.js' %}" type="text/javascript"></script>
 <script src="{% static 'js/jqx/jqxscrollbar.js' %}" type="text/javascript"></script>
 <script src="{% static 'js/jqx/jqxbuttons.js' %}" type="text/javascript"></script>
-
 <script src="{% static 'js/jqx/jqxdropdownlist.js' %}" type="text/javascript"></script>
 <script src="{% static 'js/jqx/jqxmenu.js' %}" type="text/javascript"></script>
 <script src="{% static 'js/jqx/jqxlistbox.js' %}" type="text/javascript"></script>
 <script src="{% static 'js/jqx/jqxcheckbox.js' %}" type="text/javascript"></script>
-<script src="{% static 'js/products/grid.js' %}" type="text/javascript"></script>
+<!-- MaterWidgets scripts-->
+<script src="{% static 'js/masterwidgets/base.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/masterwidgets/grid.js' %}" type="text/javascript"></script>
+<!-- app scripts-->
+<script src="{% static 'js/products/main.js' %}" type="text/javascript"></script>
 {% endblock %}	
 
 {% block content %}

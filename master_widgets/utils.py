@@ -1,4 +1,14 @@
 from rest_framework import serializers
+
+TYPE_MAPPINGS = {
+    'CharField': 'string',
+    'DecimalField': 'number',
+    'BooleanField': 'boolean',
+    'DateTimeField': 'date',
+    'IntegerField': 'number',
+    'TextField': 'string'
+}
+
 def get_filter_type(field):
     if isinstance(field, serializers.BooleanField):
         return 'checkbox'
@@ -36,3 +46,30 @@ def flatten_data_object(data: dict, parent_key: str = '', separator: str = '__')
             items[new_key] = value
             
     return items
+
+def jqx_grid_config(serializer)->dict:
+    flat_fields = flatten_serializer_fields(serializer)
+    config = {
+        'columns': [],
+        'sorting': {'default': '-created_at'},
+        'pagination': {'defaultPageSize': 20}
+    }
+
+    for field_name, field in flat_fields.items():
+        column_config = {
+            'dataField': field_name,
+            'label': field.label or field_name.replace('__', ' ').capitalize(),
+            'dataType': TYPE_MAPPINGS.get(field.__class__.__name__, 'string'),
+            'visible': True,
+            'editable': not field.read_only,
+            'filter': {'enabled': True, 'type': get_filter_type(field)}
+        }
+
+        if hasattr(serializer.Meta, 'grid_config'):
+            column_config.update(
+                serializer.Meta.grid_config.get(field_name, {})
+            )
+
+        config['columns'].append(column_config)
+    
+    return config
