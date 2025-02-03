@@ -14,7 +14,7 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = '__all__'
         grid_config = {
-            'id':{'hidden': True},
+            'id':{'hidden': True, 'label': 'Идентификатор'},
             'name': {
                 'width': '45%',
                 'filter': {'type': 'textbox'}
@@ -29,6 +29,6 @@ class ProductSerializer(serializers.ModelSerializer):
                 'columntype': 'checkbox'
             },
             'category__name': {'label': 'Категория', 'filtertype': 'list', 'width': '20%',},
-            'category__priority': {'hidden': True},
-            'category__id': {'hidden': True}
+            'category__priority': {'hidden': True, 'label': 'Приоритет категории'},
+            'category__id': {'hidden': True, 'label': 'Идентификатор категории'}
         }

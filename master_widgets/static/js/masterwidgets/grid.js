@@ -1,3 +1,22 @@
+class MasterGridHeaderMenu extends MasterContextMenu{
+	itemClick(e){
+		var data = e.args.data;
+		switch(data.action){
+			case 'show-column':
+				this.parent.showColumn(data.value, data.checked);
+		}
+		return super.itemClick(e);
+	}
+};
+
+class MasterGridRowMenu extends MasterContextMenu{
+	open(e, row){
+		this.row = row;
+		console.log(row);
+		super.open(e);
+	}
+};
+
 class MasterGrid extends MasterWidget{
 	static get_sorting(sortinformation){
 		var sorting = [];
@@ -16,6 +35,9 @@ class MasterGrid extends MasterWidget{
 		this.root = pop_attr(opts, 'root', 'results');
 		this.sorting = pop_attr(opts, 'sorting');
 		this.header_menu = pop_attr(opts, 'headerMenu', false);
+		this.row_menu = pop_attr(opts, 'rowMenu', false);
+		this.header_menu_class = pop_attr(opts, 'headerMenuClass', MasterGridHeaderMenu);
+		this.row_menu_class = pop_attr(opts, 'rowMenuClass', MasterGridRowMenu);
 		this.jqx_type = 'jqxGrid';
 		super.init(this.__initGridOptions(opts));
 	}
@@ -83,13 +105,54 @@ class MasterGrid extends MasterWidget{
 	}
 	render(){
 		super.render();
-		if(this.header_menu){
-			this.renderHeaderMenu($(this.target.find('.jqx-grid-heade')[0]));
-		}
+		if(this.header_menu)
+			this.renderHeaderMenu();
+
+		if(this.row_menu)
+			this.renderRowMenu();
 	}
-	renderHeaderMenu(header){
-		var menu_target = $('<div/>', {'class': 'grid-header-menu'}).appendTo(this.target);
-		return new MasterContextMenu(menu_target, this.headerMenuOptions(header));
+	renderHeaderMenu(){
+		return new this.header_menu_class(this.target, {
+			'elements': '.jqx-grid-header',
+			'width': 220,
+			'parent': this,
+			'items':[
+				{
+					'label':'Показывать столбцы', 
+					'items': this.attrs.columns.map((col, index) => {
+						return {
+							'label': col.text,
+							'value': col.datafield,
+							'type': 'checkbox',
+							'checked': !col.hidden,
+							'action':'show-column',
+							'index': index
+						}
+					}),
+				}
+			],
+		});
+	}
+
+	renderRowMenu(){
+		var row_menu = new this.row_menu_class(this.target, {
+			'elements': '.jqx-grid-content',
+			'width': 220,
+			'parent': this,
+			'autoOpen': false,
+			'items':[
+				{'label': 'Создать', 'value':'create'},
+				{'label': 'Изменить', 'value':'edit'},
+				{'label': 'Удалить', 'value':'remove'},
+			]
+		});
+		this.target.on('rowclick', (e) => {
+			if(!e.args.rightclick)
+				return;
+			row_menu.open(e.args.originalEvent, e.args.row);
+		});
+		
+		return row_menu;
 	}
 
 	rendergridrows(params, grid){
@@ -126,23 +189,11 @@ class MasterGrid extends MasterWidget{
 	onSort(){
 		this.jqx('updatebounddata', 'sort');
 	}
-
-	headerMenuOptions(header){
-		return{
-			'element': header,
-			'items': [
-				{
-					'label':'Показывать столбцы', 
-					'items': this.attrs.columns.map(col => ({
-						'label': col.text,
-						'datafield': col.datafield
-					})),
-				}
-			],
-		};
-	}
-
 	rowMenuOptions(){
 		return {};
 	}
-}
+	showColumn(index, show=true){
+		var opt = show? 'showcolumn': 'hidecolumn';
+		this.jqx(opt, index);
+	}
+};

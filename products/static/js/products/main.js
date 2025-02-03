@@ -14,6 +14,7 @@
 				'virtualmode': true,
 				'columnsresize': true,
 				'columnsautoresize': true,
+				'rowMenu':true,
 				//'localization':,
 			}
 		});

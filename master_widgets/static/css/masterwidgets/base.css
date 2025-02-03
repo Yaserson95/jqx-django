@@ -1,0 +1,15 @@
+.menu-item-content{
+    margin: 0px;
+    white-space: nowrap;
+    padding-right: 10px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.menu-item-content label > input{
+    margin-right: 5px;
+}
+
+.master-menu-list{
+    width: 220px;
+}

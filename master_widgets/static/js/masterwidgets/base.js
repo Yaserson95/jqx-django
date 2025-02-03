@@ -14,13 +14,17 @@ function set_default(obj, name, def=null){
 
 class MasterWidget{
 	constructor(target, options){
-		this.target = $(target);
+		this.target = this.initTarget($(target));
 		this.init(options);
 		this.render();
 	}
 
 	init(options = {}){
+		this.parent = pop_attr(options, 'parent');
 		this.attrs = options;
+	}
+	initTarget(target){
+		return target;
 	}
 
 	render(){
@@ -80,10 +84,12 @@ class MasterLoadedWidget extends MasterWidget{
 
 (jQuery)(function($){
 	$.fn.inParents = function(elem){
-		var parents = this.parents().toArray();
+		var parents = $(elem).parents().toArray();
+		var elements = $(this).toArray();
 		for(var i in parents){
-			if(elem === parents[i]){
-				return true;
+			for(var j in elements){
+				if(elements[j]===parents[i])
+					return true;
 			}
 		}
 		return false;
