@@ -1,0 +1,23 @@
+{% extends 'main\base.html' %}
+{% load static %}
+
+{% block title %}Структура организации{% endblock %}
+{% block header_1 %}Структура организации{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/masterwidgets/base.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+<!-- jqWidgets scripts-->
+<script src="{% static 'js/jqx/jqxscrollbar.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxbuttons.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxdropdownlist.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxmenu.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxlistbox.js' %}" type="text/javascript"></script>
+<script src="{% static 'js/jqx/jqxcheckbox.js' %}" type="text/javascript"></script>
+{% endblock %}	
+
+{% block content %}
+<div id="org-structure"></div>
+{% endblock %}
