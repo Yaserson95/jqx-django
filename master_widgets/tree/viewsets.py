@@ -22,6 +22,9 @@ class MasterTreeViewSet(ModelViewSet):
     label_field: str
     value_field: str = F('id')
 
+    class Meta:
+        abstract = True
+
     def filter_queryset(self, qs: QuerySet):
         parent = self.get_parent()
 
@@ -39,12 +42,11 @@ class MasterTreeViewSet(ModelViewSet):
         
         qs = qs.order_by()
         for i in range(0, len(self.children_nodes)):
-            qs = qs.union(self.get_childeren_queryset(i).order_by())
+            qs = qs.union(self.get_childeren_queryset(i, parent).order_by())
         
         return super().filter_queryset(qs)
     
-    def get_childeren_queryset(self, index: int)->QuerySet:
-        parent = self.get_parent()
+    def get_childeren_queryset(self, index: int, parent = None)->QuerySet:
         node = self.children_nodes[index]
         qs = node.get('queryset')
         value_field = node.get('value', 'id')
@@ -60,7 +62,7 @@ class MasterTreeViewSet(ModelViewSet):
         
         return self.update_queryset(qs, value_field, label_field, parent_field, index + 1)\
             .filter(parent=parent.pk)
-    
+        
     def update_queryset(self, qs:QuerySet, value_field:str, label_field:str, parent_field: str = F('parent'), index:int=0):
         if value_field is None or label_field is None:
             raise Exception('Parametres "value_field" or "label_field" is not defined')   
@@ -72,12 +74,10 @@ class MasterTreeViewSet(ModelViewSet):
             'item_type': Value(index),
         }
 
-        for name in annotations:
-            if model_field_exists(qs.model, name):
-                continue
-            qs = qs.annotate(**{name: annotations[name]})
-    
-        return qs.values(*annotations.keys())
+        # Добавляем аннотации только для тех полей, которых нет в модели
+        annotations_to_add = {k: v for k, v in annotations.items() if not model_field_exists(qs.model, k)}
+
+        return qs.annotate(**annotations_to_add).values(*annotations.keys())
     
     def get_serializer(self, *args, **kwargs):
         if self.action == 'list':
@@ -99,65 +99,3 @@ class MasterTreeViewSet(ModelViewSet):
             return self.pqrent_node
         except self.queryset.model.DoesNotExists:
             raise Http404
-
-
-'''
-class MasterTreeViewSet(GenericViewSet):
-    nodes: list
-    serializer_class = TreeSerializer
-
-    class Meta:
-        abstract = True
-
-    def get_queryset(self):
-        if hasattr(self, 'queryset'):
-            self.queryset = self.get_items_queryset()
-        return self.queryset
-
-
-    def item_queryset(self, index:int)->QuerySet:
-        if not hasattr(self, 'nodes'):
-            raise Exception('attribute "nodes" is not defined')
-        
-        info:dict = self.nodes[index]
-        qs: QuerySet = info.get('queryset')
-        parent_field = info.get('parent', 'parent_id')
-        print(qs.model._meta.get_field(parent_field))
-
-        qs = qs.annotate(
-            item_type=Value(index),
-            label=info.get('label'),
-            value=F('pk'),
-        ).values('item_type', 'label','value', parent_field)
-        return qs
-
-
-    
-    def apply_filters(self, qs:QuerySet, index:int)->QuerySet:
-        return qs.order_by()
-
-    def get_items_queryset(self):
-        items_qs = None
-
-        if not hasattr(self, 'nodes'):
-            raise Exception('attribute "nodes" is not defined')
-        
-        for i in range(0, len(self.nodes)):
-            qs = self.apply_filters(self.item_queryset(i), i)
-            if items_qs is None:
-                items_qs = qs
-            else:
-                items_qs = items_qs.union(qs)
-        
-        return items_qs
-    
-    def list(self, request: Request, *args, **kwargs)->Response:
-        queryset = self.get_queryset()
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            return self.get_paginated_response(queryset)
-
-        return Response(data=queryset)
-
-'''
