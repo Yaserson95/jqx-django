@@ -36,6 +36,9 @@ class MasterWidget{
 			return;
 		return this.target[this.jqx_type](...args);
 	}
+	id(){
+		return this.target.attr('id');
+	}
 };
 
 class MasterLoadedWidget extends MasterWidget{

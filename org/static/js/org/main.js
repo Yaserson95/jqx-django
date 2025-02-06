@@ -3,7 +3,8 @@
         new MasterTree('#org-structure', {
             'source': '/org/tree/',
             'width': '100%',
-            'height': '400px'
+            'height': '400px',
+            'ordering': 'item_type',
         });
     });
 });
