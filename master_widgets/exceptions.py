@@ -1,0 +1,2 @@
+class ValidateOptionsException(Exception):
+    pass

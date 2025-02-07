@@ -1,29 +1,21 @@
-from django.db.models import QuerySet, Value, F, OuterRef, Exists, Case, When
+from django.db.models import QuerySet, Value, F, OuterRef, Exists, Case, When, Expression
 from django.http.response import Http404
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework.request import Request
 
-from ..helpers import model_field_exists, expr
+from ..exceptions import ValidateOptionsException
+
+from ..helpers import model_field_exists, expr, validate_options
+from ..form_templates.from_model import from_model
 
 CHILDREN_TYPE_PATTERNS = {
-    'queryset': {
-        'type': QuerySet,
-        'message': "The 'queryset' must be a valid Django QuerySet."
-    },
-    'value': {
-        'type': str,
-        'message': "The 'value' must be a string."
-    },
-    'label': {
-        'type': str,
-        'message': "The 'label' must be a string."
-    },
-    'parent': {
-        'type': str,
-        'message': "The 'parent' must be a string.",
-        'default': 'parent'
-    }
+    'queryset': {'type': QuerySet,},
+    'value': {'type': (str, Expression,), 'default': 'pk'},
+    'label': {'type': (str, Expression,), },
+    'parent': {'type': str, 'default': 'parent'},
+    'name': {'type': str, 'required': False},
+    'verbose_name': {'type': str, 'required': False}
 }
 
 class TreeItemsData:
@@ -44,9 +36,24 @@ class MasterTreeViewSet(ModelViewSet):
     class Meta:
         abstract = True
 
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if hasattr(self, 'children_nodes'):
+            self.validate_children_nodes()
+
     def filter_queryset(self, qs: QuerySet):
-        if self.action == 'list':
-            qs = self.list_queryset(qs, self.get_parent())
+        item_type = int(self.request.GET.get('item_type', 0))
+
+        print(from_model(qs.model))
+
+        try:
+            if self.action == 'list':
+                qs = self.list_queryset(qs, self.get_parent())
+            elif item_type > 0 and hasattr(self, 'children_nodes'):
+                qs = self.children_nodes[item_type - 1]['queryset']
+        except IndexError:
+            raise Http404('Item type not found')
 
         return super().filter_queryset(qs)
     
@@ -63,6 +70,7 @@ class MasterTreeViewSet(ModelViewSet):
         qs = qs.order_by()
         for i in range(0, len(self.children_nodes)):
             qs = qs.union(self.get_childeren_queryset(i, parent).order_by())
+
         return qs
     
     def has_items_queryset(self):
@@ -79,23 +87,13 @@ class MasterTreeViewSet(ModelViewSet):
     
     def get_childeren_queryset(self, index: int, parent = None)->QuerySet:
         node = self.children_nodes[index]
-        qs = node.get('queryset')
-        value_field = node.get('value', 'id')
-        label_field = node.get('label')
-        parent_field = node.get('parent')
-
-        if qs is None:
-            raise Exception('children queryset is not defined')
-        if value_field is None:
-            raise Exception('children queryset value field not defined')
-        if label_field is None:
-            raise Exception('children queryset lebel field not defined')
         
-        return self.update_queryset(qs, 
-                value_field=value_field, 
-                label_field=label_field, 
-                parent_field=parent_field, 
-                index=index + 1
+        return self.update_queryset(
+            qs = node['queryset'], 
+            value_field = node['value'], 
+            label_field = node['label'],
+            parent_field = node['parent'], 
+            index = index + 1
         ).filter(parent=parent.pk)
         
     def update_queryset(self, qs:QuerySet, value_field:str, label_field:str, parent_field: str = 'parent', has_items=Value(False), index:int=0):
@@ -118,6 +116,7 @@ class MasterTreeViewSet(ModelViewSet):
         if self.action == 'list':
             return TreeItemsData(*args)
         return super().get_serializer(*args, **kwargs)
+    
     def get_serializer_class(self):
         item_type = int(self.request.GET.get('item_type', 0))
         if hasattr(self, 'children_nodes') and item_type > 0:
@@ -144,7 +143,12 @@ class MasterTreeViewSet(ModelViewSet):
             return types
         
         for i, e in enumerate(self.children_nodes):
-            types.append(self.get_model_info(e['queryset'].model, i+1))
+            node = self.get_model_info(e['queryset'].model, i+1)
+
+            for key in ['name', 'plural_name']:
+                if key in e: node[key] = e[key]
+                
+            types.append(node)
 
         return types
     
@@ -170,8 +174,8 @@ class MasterTreeViewSet(ModelViewSet):
             raise Http404
         
     def validate_children_nodes(self):
-        for node, i in enumerate(self.children_nodes):
-            for pattern in CHILDREN_TYPE_PATTERNS[node]:
-                if pattern not in node:
-                    if 'default' in pattern:
-                        self.children_nodes[i][pattern] = CHILDREN_TYPE_PATTERNS[node]
+        try:
+            for i, e in enumerate(self.children_nodes):
+                validate_options(e, CHILDREN_TYPE_PATTERNS)
+        except ValidateOptionsException as e:
+            raise ValidateOptionsException('In %d children node: %s' % (i, e.args[0]))

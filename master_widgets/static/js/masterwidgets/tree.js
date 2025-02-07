@@ -1,4 +1,4 @@
-class MasterTree extends MasterWidget{
+class BaseMasterTree extends MasterWidget{
     init(attrs){
         this.jqx_type = 'jqxTree';
         this.source = pop_attr(attrs, 'source');
@@ -133,4 +133,9 @@ class MasterTree extends MasterWidget{
         node_info.last_node = this.node_id - 1;
         node_info.in_process = false;
     }
-}
+};
+
+
+class MasterTree extends BaseMasterTree{
+
+};
