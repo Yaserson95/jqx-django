@@ -1,0 +1,72 @@
+Ñòðóêòóðà ïàïîê òîìà Data
+Ñåðèéíûé íîìåð òîìà: E6B2-C0DD
+D:.
+¦   .gitignore
+¦   db.sqlite3
+¦   manage.py
+¦   requirements.txt
+¦   tree.txt
+¦   
++---d_jqx
+¦   ¦   asgi.py
+¦   ¦   settings.py
+¦   ¦   urls.py
+¦   ¦   views.py
+¦   ¦   wsgi.py
+¦   ¦   __init__.py
+¦   ¦   
+¦   L---templates
+¦       ¦   index.html
+¦       ¦   
+¦       L---main
+¦               base.html
+¦               
++---master_widgets
+¦   ¦   apps.py
+¦   ¦   pagination.py
+¦   ¦   utils.py
+¦   ¦   __init__.py
+¦   ¦   
+¦   +---grid
+¦   ¦       viewsets.py
+¦   ¦       __init__.py
+¦   ¦       
+¦   L---static
+¦       +---css
+¦       ¦   L---masterwidgets
+¦       ¦           base.css
+¦       ¦           
+¦       L---js
+¦           L---masterwidgets
+¦                   base.js
+¦                   grid.js
+¦                   menu.js
+¦                   
++---products
+¦   ¦   admin.py
+¦   ¦   apps.py
+¦   ¦   models.py
+¦   ¦   serializers.py
+¦   ¦   tests.py
+¦   ¦   urls.py
+¦   ¦   views.py
+¦   ¦   viewsets.py
+¦   ¦   __init__.py
+¦   ¦   
+¦   +---migrations
+¦   ¦       0001_initial.py
+¦   ¦       0002_category_alter_product_options_and_more.py
+¦   ¦       __init__.py
+¦   ¦       
+¦   +---static
+¦   ¦   L---js
+¦   ¦       L---products
+¦   ¦               main.js
+¦   ¦               
+¦   L---templates
+¦       L---products
+¦               grid.html
+¦               
+L---static
+    +---css
+    ¦   ¦   main.css

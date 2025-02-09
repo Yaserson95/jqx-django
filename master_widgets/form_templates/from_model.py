@@ -48,11 +48,13 @@ def get_field_type(field:dm.Field):
             return type_name
     return 'custom'
 
-def from_model(model) -> list:
+def from_model(model, extra_fields:dict = {}) -> list:
     fields = model._meta.fields
     template = []
 
     for field in fields:
-        template.append(to_template_item(field))
-
+        temp = to_template_item(field)
+        if field.name in extra_fields:
+            temp.update(extra_fields[field.name])
+        template.append(temp)
     return template
