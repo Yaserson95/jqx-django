@@ -7,6 +7,50 @@ function pop_attr(obj, name, def=null){
 	return def;
 }
 
+function check_options(options, patterns){
+	var new_options = {};
+	for(var i in patterns){
+		var def = patterns[i].default!==undefined? patterns[i].default: null;
+		var required = patterns[i].required!==undefined? patterns[i].required: true;
+		var option = pop_attr(options, i, def);
+		if(option === null){
+			if(required){
+				throw new Error(`Option "${i}" is required`);
+			}else{
+				
+				new_options[i] = option;
+				continue;
+			}
+		}
+
+		if(patterns[i].type !== undefined){
+			if(typeof patterns[i].type === 'string'){
+				switch(patterns[i].type){
+					case 'array':
+						if(!Array.isArray(option))
+							throw new Error(`Option "${i}" type must be a "array"`);
+						break;
+					default:
+						if(typeof option !== patterns[i].type)
+							throw new Error(`Option "${i}" type must be a "${patterns[i].type}"`);
+						break;
+				}
+			}else if(typeof patterns[i].type === 'function' && !option instanceof patterns[i].type){
+				throw new Error(`Option "${i}" type must be a "${patterns[i].type.constructor.name}"`);
+			}
+		}
+		if(patterns[i].name !== undefined)
+			new_options[patterns[i].name] = option;
+		else new_options[i] = option;
+	}
+	return new_options;
+}
+
+function apply_options(cls_object, obj){
+	for(var i in obj)
+		cls_object[i] = obj[i];
+}
+
 function set_default(obj, name, def=null){
 	if(obj[name] === undefined)
 		obj[name] = def;
@@ -18,9 +62,14 @@ class MasterWidget{
 		this.init(options);
 		this.render();
 	}
+	widgetOptionsPatterns(patterns = {}){
+		return {...patterns, ...{
+			'parent':{'required': false, 'type': MasterWidget}
+		}};
+	}
 
 	init(options = {}){
-		this.parent = pop_attr(options, 'parent');
+		apply_options(this, check_options(options, this.widgetOptionsPatterns()));
 		this.attrs = options;
 	}
 	initTarget(target){
@@ -42,45 +91,37 @@ class MasterWidget{
 };
 
 class MasterLoadedWidget extends MasterWidget{
-	init(options){
-		if(typeof options.url !== 'string')
-			throw new Error('URL type is not correct');
-		if(typeof options.widget !== 'function')
-			throw new Error('Widget class type is not correct');
-		super.init(options);
+	widgetOptionsPatterns(){
+		return super.widgetOptionsPatterns({
+			'url': {'type': 'string'},
+			'request': {'type': 'object', 'default':{'method': 'GET'}},
+			'widgetClass': {'type': 'function', 'name':'widget_class'},
+			'autoload': {'type': 'boolean', 'default': true},
+			'config': {'type': 'object', 'default': {}}
+		});
 	}
 
-	render(){
-		var autoload = this.attrs.autoload || false;
-		var request_opts = typeof this.attrs.request === 'object'?
-			this.attrs.request: {'method': 'GET'};
-		
-		request_opts.success = (data)=>{
+	render(){		
+		this.request.success = (data)=>{
 			this.showSpinner(false);
 			this.widget = this.afterLoading(data);
 		}
 
-		request_opts.error = (err)=>{
+		this.request.error = (err)=>{
 			console.error(err);
 			this.showSpinner(false);
 		}
-
-		this.attrs.request = request_opts;
-		if(autoload)
-			this.load();
-
+		if(this.autoload) this.load();
 		super.render();
 	}
 
 	load(){
 		this.showSpinner(true);
-		$.ajax(this.attrs.url, this.attrs.request);
+		$.ajax(this.url, this.request);
 	}
 
 	afterLoading(config){
-		if(typeof this.attrs.config === 'object')
-			config = {...config, ...this.attrs.config};
-		return new this.attrs.widget(this.target, config);
+		return new this.widget_class(this.target, {...config, ...this.config});
 	}
 	showSpinner(show=true){}
 }

@@ -1,12 +1,17 @@
 class BaseMasterTree extends MasterWidget{
+    widgetOptionsPatterns(patterns={}){
+		return super.widgetOptionsPatterns({...patterns,...{
+			'source': {'type': 'string'},
+            'ordering': {'type': 'string', 'default': 'label'}
+		}});
+	}
+
     init(attrs){
         this.jqx_type = 'jqxTree';
-        this.source = pop_attr(attrs, 'source');
-        this.ordering = pop_attr(attrs, 'ordering', 'label');
         this.opened_nodes = {};
         this.node_id = 0;
-        this.adapter = new $.jqx.dataAdapter(this.init_adapter());
         super.init(attrs);
+        this.adapter = new $.jqx.dataAdapter(this.init_adapter());
     }
     init_adapter(){
         return {
@@ -135,7 +140,68 @@ class BaseMasterTree extends MasterWidget{
     }
 };
 
+class MasterTreeItemMenu extends MasterContextMenu{
+    static item(elem){
+        var parent = $(elem);
+        while(parent.length > 0){
+            if(parent.prop('tagName')==='LI'){
+                return parent[0]
+            }
+            parent = parent.parent();
+        }
+        return null;
+    }
+    open(e){
+        var item = MasterTreeItemMenu.item(e.target);
+
+        super.open(e);
+    }
+}
+
 
 class MasterTree extends BaseMasterTree{
+    widgetOptionsPatterns(){
+		return super.widgetOptionsPatterns({
+			'itemTypes': {'type': 'array', 'name': 'item_types'},
+            'itemsMenu': {'type': 'boolean', 'default': false, 'name': 'items_menu'},
+            'itemsMenuClass': {'type': 'function', 'default': MasterTreeItemMenu, 'name': 'items_menu_class'}
+		});
+	}
+    render(){
+        super.render();
+        if(this.items_menu) 
+            this.item_context_menu = this.renderItemsMenu();
+    }
+    renderItemsMenu(){
+        var creation = {'label': 'Создать'};
+        if(this.item_types.length > 1){
+            creation.items = this.item_types.map(tp=>({
+                'item_type': tp.type,
+                'label': tp.name,
+                'action': 'create'
+            }));
+        }else{
+            creation.action = 'create',
+            creation.item_type = 0
+        }
+        return new this.items_menu_class(this.target, {
+            'elements': 'li',
+            'autoOpen': true,
+            'parent': this,
+            'items':[
+                creation,
+                {'label':'Изменить', 'action':'edit'},
+                {'label':'Удалить', 'action':'remove'}
+            ]
+        });
+    }
+};
 
+class MasterModelTree extends MasterLoadedWidget{
+    init(options = {}){
+		options.widgetClass = MasterTree;
+		options.url = options.source + 'config/';
+		super.init(options);
+		this.config = this.attrs;
+	}
 };

@@ -16,10 +16,17 @@ class MasterMenu extends MasterWidget{
         }
     }
 
+    widgetOptionsPatterns(patterns = {}){
+		return super.widgetOptionsPatterns({...patterns, ...{
+			'items': {'type': 'array',},
+        }});
+	}
+
     init(options){
-        this.items = pop_attr(options, 'items');
         this.jqx_type = 'jqxMenu';
         this.lists = [];
+        if(options.source !== undefined)
+            delete(options.source);
         super.init(options);
     }
 
@@ -89,9 +96,14 @@ class MasterMenu extends MasterWidget{
 }
 
 class MasterContextMenu extends MasterMenu{
+    widgetOptionsPatterns(patterns = {}){
+		return super.widgetOptionsPatterns({...patterns, ...{
+			'elements': {'type': 'string'},
+            'autoOpen': {'type': 'boolean', 'default': true, 'name': 'auto_open'}
+        }});
+	}
+
     init(options){
-        this.elements = pop_attr(options, 'elements');
-        this.autoOpen = pop_attr(options, 'autoOpen', true);
         options.autoOpenPopup = false;
         options.mode = 'popup';
         options.autoCloseOnClick = false;
@@ -107,7 +119,7 @@ class MasterContextMenu extends MasterMenu{
             'contextmenu': (e) => {
                 var elements = this.parentTarget.find(this.elements);
                 if(elements.inParents(e.target)){
-                    if(this.autoOpen) this.open(e);
+                    if(this.auto_open) this.open(e);
                     return false;
                 }
                 this.close(e);

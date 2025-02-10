@@ -1,6 +1,6 @@
 (jQuery)(function($){
     $(document).ready(function (){
-        new MasterTree('#org-structure', {
+        new MasterModelTree('#org-structure', {
             'source': '/org/tree/',
             'width': '100%',
             'height': '400px',

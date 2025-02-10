@@ -131,12 +131,7 @@ class MasterTreeViewSet(ModelViewSet):
         responce.data['item_id'] = self.request.GET.get('item_id', None)
         return responce
     
-    def options(self, request, *args, **kwargs)->Response:
-        responce = super().options(request, *args, **kwargs)
-        responce.data['item_types'] = self.get_item_types()
-        return responce
-    
-    @action(['GET', 'OPTION'], False, 'form/(?P<type>[0-9]+)', 'tree_form')
+    @action(['GET', 'OPTION'], False, 'form/(?P<type>[0-9]+)', 'tree_form_info')
     def form(self, request:Request, *args, **kwargs)->Response:
         form_type = int(kwargs.get('type', 0))
         try:
@@ -147,6 +142,14 @@ class MasterTreeViewSet(ModelViewSet):
         except IndexError:
             raise Http404
         return Response(template)
+    
+    @action(['GET', 'OPTION'], False, 'config', 'tree_fors')
+    def config(self, request:Request, *args, **kwargs)->Response:
+        forms = self.get_item_types()
+        return Response({
+            'itemTypes':forms,
+            'itemsMenu': True,
+        })
     
     def get_item_types(self):
         types = [self.get_model_info(self.get_queryset().model, 0)]

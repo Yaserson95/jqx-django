@@ -29,17 +29,24 @@ class MasterGrid extends MasterWidget{
 		return sorting;
 	}
 
-	init(opts={}){
-		this.source = pop_attr(opts, 'source', '/');
-		this.id = pop_attr(opts, 'id', 'id');
-		this.root = pop_attr(opts, 'root', 'results');
-		this.sorting = pop_attr(opts, 'sorting');
-		this.header_menu = pop_attr(opts, 'headerMenu', false);
-		this.row_menu = pop_attr(opts, 'rowMenu', false);
-		this.header_menu_class = pop_attr(opts, 'headerMenuClass', MasterGridHeaderMenu);
-		this.row_menu_class = pop_attr(opts, 'rowMenuClass', MasterGridRowMenu);
+	widgetOptionsPatterns(){
+		return super.widgetOptionsPatterns({
+			'source': {'type': 'string', 'default':'/'},
+			'id': {'type': 'string', 'default':'id'},
+			'root': {'type': 'string', 'default':'results'},
+			'sorting': {'type': 'object', 'required': false},
+			'headerMenu': {'type': 'boolean', 'default': false, 'name': 'header_menu'},
+			'rowMenu': {'type': 'boolean', 'default': false, 'name': 'row_menu'},
+			'headerMenuClass': {'type': 'function', 'default': MasterGridHeaderMenu, 'name': 'header_menu_class'},
+			'rowMenuClass': {'type': 'function', 'default': MasterGridRowMenu, 'name': 'row_menu_class'},
+			'columns': {'type': 'array'},
+		});
+	}
+
+	init(opts){
 		this.jqx_type = 'jqxGrid';
-		super.init(this.__initGridOptions(opts));
+		super.init(opts);
+		this.__initGridOptions();
 	}
 
 	__initDatafields(columns){
@@ -60,28 +67,26 @@ class MasterGrid extends MasterWidget{
 			hidden: col.hidden || false
 		}));
 	}
-	__initGridOptions(config){
+	__initGridOptions(){
 		var T = this;
-		if(config.virtualmode){
-			config.rendergridrows = function(params){
+		if(this.attrs.virtualmode){
+			this.attrs.rendergridrows = function(params){
 				return T.rendergridrows(params, this);     
 			}
 		}
-		config.source = new $.jqx.dataAdapter(this.__adapterOptions(config));
-		config.columns = this.__initColumns(config.columns);
-		if(config.pagesize){
-			config.pageable = true;
-            set_default(config, 'pagesizeoptions', [config.pagesize]);
+		this.attrs.source = new $.jqx.dataAdapter(this.__adapterOptions());
+		this.attrs.columns = this.__initColumns(this.columns);
+		if(this.attrs.pagesize){
+			this.attrs.pageable = true;
+            set_default(this.attrs, 'pagesizeoptions', [this.attrs.pagesize]);
         }
-
-		return config;
 	}
-	__adapterOptions(config){
+	__adapterOptions(){
 		var T = this;
 		var adapter =  {
 			datatype: "json",
 			cache: false,
-			datafields: this.__initDatafields(config.columns),
+			datafields: this.__initDatafields(this.columns),
 			url: this.source,
 			id: this.id,
 			root: this.root,
@@ -96,7 +101,7 @@ class MasterGrid extends MasterWidget{
 			}
 		};
 
-        if(config.pagesize){
+        if(this.attrs.pagesize){
             adapter.beforeprocessing = function (data) {
                 adapter.totalrecords = data.count;
             }
@@ -197,3 +202,12 @@ class MasterGrid extends MasterWidget{
 		this.jqx(opt, index);
 	}
 };
+
+class MasterModelGrid extends MasterLoadedWidget{
+	init(options = {}){
+		options.widgetClass = MasterGrid;
+		options.url = options.source + 'config/';
+		super.init(options);
+		this.config = this.attrs;
+	}
+}
