@@ -141,20 +141,19 @@ class BaseMasterTree extends MasterWidget{
 };
 
 class MasterTreeItemMenu extends MasterContextMenu{
-    static item(elem){
-        var parent = $(elem);
-        while(parent.length > 0){
-            if(parent.prop('tagName')==='LI'){
-                return parent[0]
-            }
-            parent = parent.parent();
-        }
-        return null;
-    }
     open(e){
-        var item = MasterTreeItemMenu.item(e.target);
-
+        var item = $(this.current).parent();
+        this.parent.jqx('selectItem', item[0]);
         super.open(e);
+    }
+
+    itemClick(e){
+        switch(e.args.data.action){
+            case 'create':
+                this.parent.startCreate($(this.current).parent()[0], e.args.data);
+                break;
+        }
+        return super.itemClick(e);
     }
 }
 
@@ -185,7 +184,7 @@ class MasterTree extends BaseMasterTree{
             creation.item_type = 0
         }
         return new this.items_menu_class(this.target, {
-            'elements': 'li',
+            'elements': 'li > .jqx-item',
             'autoOpen': true,
             'parent': this,
             'items':[
@@ -194,6 +193,18 @@ class MasterTree extends BaseMasterTree{
                 {'label':'Удалить', 'action':'remove'}
             ]
         });
+    }
+    startCreate(parent, item_data){
+        if(item_data.dialog === undefined){
+            var dialog_target = $('<div/>', {'class': 'master-tree-dialog create-dialog'})
+                .appendTo(this.target);            
+            item_data.dialog = new MasterModelFormDialog(dialog_target, {
+                'parent': this,
+                'title': `Добавить ${item_data.label.toLowerCase()}`,
+                'source': `${this.source}form/${item_data.item_type}/`
+            });
+        }
+        item_data.dialog.open();
     }
 };
 

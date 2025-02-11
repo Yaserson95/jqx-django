@@ -141,7 +141,7 @@ class MasterTreeViewSet(ModelViewSet):
                 template = from_model(self.children_nodes[form_type - 1]['queryset'].model)
         except IndexError:
             raise Http404
-        return Response(template)
+        return Response({'template':template})
     
     @action(['GET', 'OPTION'], False, 'config', 'tree_fors')
     def config(self, request:Request, *args, **kwargs)->Response:

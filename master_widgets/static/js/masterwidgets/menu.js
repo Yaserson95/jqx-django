@@ -107,6 +107,7 @@ class MasterContextMenu extends MasterMenu{
         options.autoOpenPopup = false;
         options.mode = 'popup';
         options.autoCloseOnClick = false;
+
         super.init(options);
     }
     initTarget(target){
@@ -115,22 +116,7 @@ class MasterContextMenu extends MasterMenu{
     }
 
     render(){
-        $(document).on({
-            'contextmenu': (e) => {
-                var elements = this.parentTarget.find(this.elements);
-                if(elements.inParents(e.target)){
-                    if(this.auto_open) this.open(e);
-                    return false;
-                }
-                this.close(e);
-                return true;
-            },
-            'click':(e) => {
-                if(!$(this.lists).inParents(e.target)){
-                    this.close(e);
-                }
-            }
-        });
+        this.update();
         super.render();
     }
     open(e){
@@ -142,9 +128,33 @@ class MasterContextMenu extends MasterMenu{
         this.jqx('close');
     }
 
+    update(){
+        $(document).on({
+            'contextmenu': (e) => {
+                return this.onContextMenu(e);
+            },
+            'click':(e) => {
+                if($(this.lists).inParents(e.target)===false){
+                    this.close(e);
+                }
+            }
+        });
+    }
+
     itemClick(e){
         var close = super.itemClick(e);
         if(close) this.close(e);
         return close;
+    }
+    onContextMenu(e){
+        var elements = this.parentTarget.find(this.elements);
+        var current = elements.inParents(e.target);
+        if(current){
+            this.current = current;
+            if(this.auto_open) this.open(e);
+            return false;
+        }
+        this.close(e);
+        return true;
     }
 }

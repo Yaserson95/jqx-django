@@ -13,3 +13,15 @@
 .master-menu-list{
     width: 220px;
 }
+
+.master-dialog-layout{
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+.master-dialog-content{
+    width: 100%;
+}
+.master-dialog-buttons{
+    margin-top: 5px;
+}

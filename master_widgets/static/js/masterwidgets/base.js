@@ -56,6 +56,49 @@ function set_default(obj, name, def=null){
 		obj[name] = def;
 }
 
+/**
+ * 
+ * @param {object} obj 
+ * @param {object} defaults 
+ * @returns 
+ */
+function defaults(obj, defaults){
+	for(var i in defaults){
+		if(obj[i] === undefined)
+			obj[i] = defaults[i];
+	}
+	return obj;
+}
+
+/**
+ * 
+ * @param {object} obj 
+ * @param {Array} keys 
+ */
+function splitObject(obj, keys){
+	var new_obj = {};
+	for(var i in keys){
+		if(obj[keys[i]] === undefined)
+			continue;
+		new_obj[keys[i]] = obj[keys[i]];
+		delete(obj[keys[i]]);
+	}
+	return new_obj;
+}
+
+function percent(){
+	
+}
+
+/**
+ * Get Font Awesome icon element
+ * @param {string} icon 
+ * @returns {jQuery}
+ */
+function faicon(icon){
+    return $('<i/>', {'class': `fa fa-${icon}`});
+}
+
 class MasterWidget{
 	constructor(target, options){
 		this.target = this.initTarget($(target));
@@ -101,13 +144,22 @@ class MasterLoadedWidget extends MasterWidget{
 		});
 	}
 
+	init(opts){
+		this.in_process = false;
+		this.has_errors = false;
+		super.init(opts);
+	}
+
 	render(){		
 		this.request.success = (data)=>{
 			this.showSpinner(false);
+			this.in_process = false;
 			this.widget = this.afterLoading(data);
 		}
 
 		this.request.error = (err)=>{
+			this.in_process = false;
+			this.has_errors = true;
 			console.error(err);
 			this.showSpinner(false);
 		}
@@ -117,6 +169,7 @@ class MasterLoadedWidget extends MasterWidget{
 
 	load(){
 		this.showSpinner(true);
+		this.in_process = true;
 		$.ajax(this.url, this.request);
 	}
 
@@ -128,12 +181,18 @@ class MasterLoadedWidget extends MasterWidget{
 
 (jQuery)(function($){
 	$.fn.inParents = function(elem){
+		/**
+		 * @type {Array}
+		 */
 		var parents = $(elem).parents().toArray();
 		var elements = $(this).toArray();
+
+		parents.unshift($(elem)[0]);
+
 		for(var i in parents){
 			for(var j in elements){
 				if(elements[j]===parents[i])
-					return true;
+					return parents[i];
 			}
 		}
 		return false;
