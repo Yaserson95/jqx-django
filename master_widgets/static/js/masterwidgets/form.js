@@ -1,4 +1,13 @@
 class MasterForm extends MasterWidget{
+    widgetOptionsPatterns(patterns={}){
+		return super.widgetOptionsPatterns({...patterns,...{
+            'rowDefault': {'type': 'object', 'name': 'row_default', 'default':{
+                'all':{'labelWidth': '40%', 'width': '100%'},
+                'date':{'labelWidth': '40%', 'width': '98%'}
+            }}
+        }});
+	}
+
     initTarget(target){
         target = super.initTarget(target);
         if(target.prop('tagName')!=='FORM'){
@@ -6,6 +15,20 @@ class MasterForm extends MasterWidget{
             target = $('<form/>').appendTo(target);
         }
         return target;
+    }
+    updateTemplate(template){
+        for(var i in template){
+            if(Array.isArray(template[i].columns)){
+                this.updateTemplate(template[i].columns);
+            }else{
+                if(this.row_default[template[i].type] !== undefined){
+                    template[i] = defaults(template[i], this.row_default[template[i].type]);
+                }else{
+                    template[i] = defaults(template[i], this.row_default.all);
+                }
+                
+            }
+        }
     }
 
     init(opts){
@@ -15,7 +38,12 @@ class MasterForm extends MasterWidget{
 
     render(){
         this.target.addClass('master-form');
+        this.updateTemplate(this.attrs.template);
         super.render();
+    }
+
+    value(...args){
+        return this.target.val(...args);
     }
 }
 
@@ -30,7 +58,20 @@ class MasterModelForm extends MasterLoadedWidget{
         if(this.parent.is_opened_after)
             this.parent.open();
 
+        if(this.value_args !== undefined){
+            widget.val(...this.value_args);
+            delete(this.value_args);
+        }
+
         return widget;
+    }
+
+    value(...args){
+        if(this.widget === undefined){
+            this.value_args = args;
+            return null;
+        }
+        return this.widget.val(...args);
     }
 }
 

@@ -14,14 +14,32 @@
     width: 220px;
 }
 
-.master-dialog-layout{
+.master-dialog{
+    display: flex;
+    flex-direction: column;
+}
+
+.master-dialog .master-dialog-header{
+    width: 100% !important;
+    height:32px !important;
+    min-height:32px;
+    box-sizing: border-box;
+}
+
+.master-dialog .master-dialog-layout{
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    width: 100% !important;
+    height: 100% !important;
 }
-.master-dialog-content{
+.master-dialog .master-dialog-content{
     width: 100%;
+    height: 100%;
+    overflow: auto;
 }
-.master-dialog-buttons{
+.master-dialog .master-dialog-buttons{
     margin-top: 5px;
+    min-height:40px;
+    height:40px;
 }

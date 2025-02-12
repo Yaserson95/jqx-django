@@ -86,9 +86,6 @@ function splitObject(obj, keys){
 	return new_obj;
 }
 
-function percent(){
-	
-}
 
 /**
  * Get Font Awesome icon element
@@ -147,6 +144,7 @@ class MasterLoadedWidget extends MasterWidget{
 	init(opts){
 		this.in_process = false;
 		this.has_errors = false;
+		this.is_load = false;
 		super.init(opts);
 	}
 
@@ -154,6 +152,7 @@ class MasterLoadedWidget extends MasterWidget{
 		this.request.success = (data)=>{
 			this.showSpinner(false);
 			this.in_process = false;
+			this.is_load = true;
 			this.widget = this.afterLoading(data);
 		}
 

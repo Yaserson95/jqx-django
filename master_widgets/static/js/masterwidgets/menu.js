@@ -147,7 +147,7 @@ class MasterContextMenu extends MasterMenu{
         return close;
     }
     onContextMenu(e){
-        var elements = this.parentTarget.find(this.elements);
+        var elements = this.getElements();
         var current = elements.inParents(e.target);
         if(current){
             this.current = current;
@@ -156,5 +156,9 @@ class MasterContextMenu extends MasterMenu{
         }
         this.close(e);
         return true;
+    }
+    
+    getElements(){
+        return this.parentTarget.find(this.elements);
     }
 }

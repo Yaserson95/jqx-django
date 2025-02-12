@@ -9,7 +9,7 @@ class BaseMasterTree extends MasterWidget{
     init(attrs){
         this.jqx_type = 'jqxTree';
         this.opened_nodes = {};
-        this.node_id = 0;
+        this.nodes_info = [];
         super.init(attrs);
         this.adapter = new $.jqx.dataAdapter(this.init_adapter());
     }
@@ -63,6 +63,8 @@ class BaseMasterTree extends MasterWidget{
     }
     getItem(node){
         var data = this.jqx('getItem', node);
+        if(node.treeID !== undefined)
+            data = {...data, ...this.nodes_info[node.treeID]};
         return data;
     }
     getItemById(node_id){
@@ -72,15 +74,14 @@ class BaseMasterTree extends MasterWidget{
         return this.getItem(node[0]);
     }
 
-    getItemContent(item_data){
+    getItemContent(item_data, id){
         var item = {
-            'id': this.nodeId('node' + this.node_id),
-            'value': item_data.value,
-            'label': item_data.label
+            'id': this.nodeId('node' + id),
+            'value': pop_attr(item_data, 'value'),
+            'label': pop_attr(item_data, 'label')
         };
         if(item_data.has_items)
-            item.items = [this.getItemLoader(this.nodeId('node' + this.node_id))];
-        this.node_id ++;
+            item.items = [this.getItemLoader(this.nodeId('node' + id))];
         return item;
     }
 
@@ -98,8 +99,14 @@ class BaseMasterTree extends MasterWidget{
         var id = data.item_id;
         var node = (id!==null)? this.getItemById(id).element: null;
         for(var i in data.results){
-            var item = data.results[i];
-            this.addItem(node, this.getItemContent(item));
+            var item_data = data.results[i];
+            var item = this.getItemContent(item_data, this.nodes_info.length);
+            this.addItem(node, item);
+
+            var element = this.target.find('#'+item.id)[0];
+            element.treeID = this.nodes_info.length;
+            item_data.element = element;
+            this.nodes_info.push(item_data);
         }
         this.showNodeLoader(node, false);
         this.__updateNode(data);
@@ -142,21 +149,34 @@ class BaseMasterTree extends MasterWidget{
 
 class MasterTreeItemMenu extends MasterContextMenu{
     open(e){
-        var item = $(this.current).parent();
-        this.parent.jqx('selectItem', item[0]);
+        var item = $(this.current).parent()[0];
+        var item_data = this.parent.getItem(item);
+        var item_type = this.parent.item_types[item_data.item_type];
+
+        this.current_data = item_data;
+        this.updateRules(item_type.rules);
+        this.parent.jqx('selectItem', item);
         super.open(e);
     }
 
     itemClick(e){
         switch(e.args.data.action){
             case 'create':
-                this.parent.startCreate($(this.current).parent()[0], e.args.data);
+                this.parent.openCreateDialog(e.args.data, this.current_data);
                 break;
         }
         return super.itemClick(e);
     }
-}
 
+    updateRules(rules){
+        var menu_items = this.target.find('ul > li').toArray();
+        for(var i in rules){
+            if(i > menu_items.length - 1) break;
+            this.jqx('disable', menu_items[i].id, !rules[i]);
+        }
+    }
+
+}
 
 class MasterTree extends BaseMasterTree{
     widgetOptionsPatterns(){
@@ -185,7 +205,6 @@ class MasterTree extends BaseMasterTree{
         }
         return new this.items_menu_class(this.target, {
             'elements': 'li > .jqx-item',
-            'autoOpen': true,
             'parent': this,
             'items':[
                 creation,
@@ -194,7 +213,9 @@ class MasterTree extends BaseMasterTree{
             ]
         });
     }
-    startCreate(parent, item_data){
+
+    openCreateDialog(item_data, node_info){
+        console.log(node_info);
         if(item_data.dialog === undefined){
             var dialog_target = $('<div/>', {'class': 'master-tree-dialog create-dialog'})
                 .appendTo(this.target);            

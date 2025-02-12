@@ -46,7 +46,10 @@ class MasterDialog extends MasterWidget{
         return this.layout.base;
     }
     renderContent(content){
-        this.resizeContent()
+        /*content.jqxPanel({
+            'width': '100%',
+            'height': '100%',
+        });*/
         return this;
     }
 
@@ -63,7 +66,7 @@ class MasterDialog extends MasterWidget{
         this.target.append(
             this.renderHeader(),
             this.renderLayout()
-        );
+        ).addClass('master-dialog');
         super.render();
         this.renderContent(this.layout.content);
         if(this.layout.buttons){
@@ -79,14 +82,6 @@ class MasterDialog extends MasterWidget{
         this.title = text;
         this.header.label.text(text);
         return this;
-    }
-
-    resizeContent(){
-        var window_height = this.target.outerHeight();
-
-        console.log(this.getMaxSize());
-
-        //var content_height = 
     }
 
     getTitle(){

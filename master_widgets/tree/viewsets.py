@@ -166,13 +166,25 @@ class MasterTreeViewSet(ModelViewSet):
 
         return types
     
-    def get_model_info(self, model, index=0):
+    def get_model_info(self, model, index:int=0):
         return {
             'className': model.__name__,
             'type': index,
             'name': model._meta.verbose_name,
-            'plural_name': model._meta.verbose_name_plural
+            'plural_name': model._meta.verbose_name_plural,
+            'rules': self.get_object_rules(index),
+            'parent': self.get_parent_field(index)
         }
+    
+    def get_object_rules(self, item_type=0):
+        if item_type == 0:
+            return [True, True, True]
+        return [False, True, True]
+    
+    def get_parent_field(self, index:int):
+        if index == 0:
+            return self.parent_field
+        return self.children_nodes[index - 1]['parent']
     
     def get_parent(self):
         if hasattr(self, 'pqrent_node'):

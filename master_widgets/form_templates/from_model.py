@@ -16,30 +16,33 @@ def to_template_item(field: dm.Field):
         'type': get_field_type(field),
         'bind': field.name,
         'label': field.verbose_name,
-        'required': field.null
+        'required': not field.null or not field.blank
     }
 
     if field.is_relation and isinstance(field, dm.ForeignKey):
-        item.update(to_foreign_field(field))
+        item.update(to_foreign_field(field, item['required']))
 
     if field.choices:
-        item.update(to_choices_field(field))
+        item.update(to_choices_field(field, item['required']))
 
     return item
 
-def to_choices_field(field:dm.Field):
-    return {
-        'type': 'option',
-        'component': 'jqxDropDownList',
-        'options': [{'value':opt[0], 'label':opt[1]} for opt in field.choices],
-    }
+def to_choices_field(field:dm.Field, is_required: bool = False):
+    options = [{'value':opt[0], 'label':opt[1]} for opt in field.choices]
+    return to_options(options, is_required)
 
-def to_foreign_field(field:dm.Field):
+def to_foreign_field(field:dm.Field, is_required: bool = False):
     relation_queryset = field.related_model.objects.all()
+    options = [{'value': item.pk, 'label': str(item)} for item in relation_queryset]
+    return to_options(options, is_required)
+
+def to_options(options: list, is_required: bool = False):
+    if not is_required:
+        options.insert(0, {'value': None, 'label': '----------------'})
     return {
         'type': 'option',
         'component': 'jqxDropDownList',
-        'options': [{'value': item.pk, 'label': str(item)} for item in relation_queryset],
+        'options': options,
     }
 
 def get_field_type(field:dm.Field):
