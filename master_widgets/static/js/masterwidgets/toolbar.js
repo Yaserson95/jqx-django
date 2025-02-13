@@ -13,6 +13,7 @@ class MasterToolbar extends MasterWidget{
         }});
 	}
     init(attrs){
+        this.tools = {};
         this.jqx_type = 'jqxToolBar';
         super.init(defaults(attrs, {'height': 'auto'}));
     }
@@ -56,9 +57,27 @@ class MasterToolbar extends MasterWidget{
                 break;
         }
 
+
         tool.attr('title', item.label || '');
-        //this.option('buttons')[index].tool = tool;
+
+        if(!menuToolIninitialization){
+            if(this.tools[item.name] !== undefined)
+                throw new Error(`Tool "${item.name}" is exists`);
+            item.tool = tool[0];
+            this.tools[item.name] = item;
+        }
         return tool;
+    }
+
+    getTool(name){
+        if(typeof this.tools[name] === undefined)
+            return null;
+
+        return this.tools[name].tool;
+    }
+
+    getToolNames(){
+        return Object.keys(this.tools);
     }
 
     static getTemplate(buttons){

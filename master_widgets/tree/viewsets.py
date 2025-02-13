@@ -151,6 +151,14 @@ class MasterTreeViewSet(ModelViewSet):
             'itemsMenu': True,
         })
     
+    def retrieve(self, request, *args, **kwargs)->Response:
+        responce = super().retrieve(request, *args, **kwargs)
+        responce.data = {
+            'label': str(self.get_object()),
+            'item': responce.data
+        }
+        return responce
+    
     def get_item_types(self):
         types = [self.get_model_info(self.get_queryset().model, 0)]
         if not hasattr(self, 'children_nodes'):

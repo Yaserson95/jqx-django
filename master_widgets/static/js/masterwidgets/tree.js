@@ -148,21 +148,36 @@ class BaseMasterTree extends MasterWidget{
 };
 
 class MasterTreeItemMenu extends MasterContextMenu{
-    open(e){
+    open(e, root=false){
+        if(!root){
+            this.openItem(e);
+        }else{
+            this.openRoot(e);
+        }
+        super.open(e);
+    }
+
+    openItem(e){
         var item = $(this.current).parent()[0];
         var item_data = this.parent.getItem(item);
         var item_type = this.parent.item_types[item_data.item_type];
-
+        item_type.rules[2] = !item_data.has_items;
         this.current_data = item_data;
         this.updateRules(item_type.rules);
         this.parent.jqx('selectItem', item);
-        super.open(e);
+    }
+    openRoot(e){
+        this.current_data = null;
+        this.updateRules([true, false, false]);
     }
 
     itemClick(e){
         switch(e.args.data.action){
             case 'create':
                 this.parent.openCreateDialog(e.args.data, this.current_data);
+                break;
+            case 'edit':
+                this.parent.openEditDialog(e.args.data, this.current_data);
                 break;
         }
         return super.itemClick(e);
@@ -174,6 +189,17 @@ class MasterTreeItemMenu extends MasterContextMenu{
             if(i > menu_items.length - 1) break;
             this.jqx('disable', menu_items[i].id, !rules[i]);
         }
+    }
+
+    onContextMenu(e){
+        if(!super.onContextMenu(e))
+            return false;
+
+        if($(this.parent.target).inParents(e.target)){
+            this.open(e, true);          
+            return false;
+        }
+        return true;
     }
 
 }
@@ -214,18 +240,47 @@ class MasterTree extends BaseMasterTree{
         });
     }
 
-    openCreateDialog(item_data, node_info){
-        console.log(node_info);
-        if(item_data.dialog === undefined){
-            var dialog_target = $('<div/>', {'class': 'master-tree-dialog create-dialog'})
+    __getModelDialog(model_info, title){
+        if(model_info.dialog === undefined){
+            var dialog_target = $('<div/>', {'class': 'master-tree-dialog model-dialog'})
                 .appendTo(this.target);            
-            item_data.dialog = new MasterModelFormDialog(dialog_target, {
+                model_info.dialog = new MasterModelFormDialog(dialog_target, {
                 'parent': this,
-                'title': `Добавить ${item_data.label.toLowerCase()}`,
-                'source': `${this.source}form/${item_data.item_type}/`
+                'title': title,
+                'source': `${this.source}form/${model_info.type}/`
             });
+        }else{
+            model_info.dialog.setTitle(title);
+            model_info.dialog.form.clear();
         }
-        item_data.dialog.open();
+        return model_info.dialog;
+    }
+
+    openCreateDialog(item_data, node_info){
+        var type = this.item_types[item_data.item_type];
+        var title = `Создать ${type.name.toLowerCase()}`;
+        var dialog = this.__getModelDialog(type, title);
+        var value = {};
+
+        value[type.parent] = (node_info !== null)? node_info.value: null;
+        dialog.open(value);
+    }
+
+    async openEditDialog(item_data, node_info){
+        var type = this.item_types[node_info.item_type];
+        try{
+            var data = await $.ajax({
+                'url': `${this.source}${node_info.value}/`,
+                'method': 'GET',
+                'data':{'item_type': node_info.item_type}
+            });
+
+            var title = `Изменить ${type.name.toLowerCase()} "${data.label}"`;
+            var dialog = this.__getModelDialog(type, title);
+            dialog.open(data.item);
+        }catch(e){
+            console.error(e.message);
+        }
     }
 };
 

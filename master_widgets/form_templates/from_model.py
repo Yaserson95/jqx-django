@@ -12,8 +12,9 @@ BASE_FIELD_TYPES = {
 }
 
 def to_template_item(field: dm.Field):
+    field_type = get_field_type(field)
     item = {
-        'type': get_field_type(field),
+        'type': field_type,
         'bind': field.name,
         'label': field.verbose_name,
         'required': not field.null or not field.blank
@@ -25,7 +26,21 @@ def to_template_item(field: dm.Field):
     if field.choices:
         item.update(to_choices_field(field, item['required']))
 
+    match field_type:
+        case 'text':
+            item.update(to_text_field(dm.Field))
+        case 'label':
+            item['required'] = False
+    
     return item
+
+def to_text_field(field: dm.CharField):
+    item = {
+        #'length': field.max_length
+    }
+    return item
+
+    
 
 def to_choices_field(field:dm.Field, is_required: bool = False):
     options = [{'value':opt[0], 'label':opt[1]} for opt in field.choices]

@@ -59,6 +59,10 @@ class MasterDialog extends MasterWidget{
             'buttons': this.buttons,
             'rtl': true
         });
+
+        $(this.layout.buttons.getTool('confirm')).click((e)=>this.confirm(e));
+        $(this.layout.buttons.getTool('cancel')).click((e)=>this.cancel(e));
+
         return this;
     }
 
@@ -92,5 +96,11 @@ class MasterDialog extends MasterWidget{
         var w = this.jqx('maxWidth');
         var h = this.jqx('maxHeight');
         return [w,h];
+    }
+    confirm(e){
+
+    }
+    cancel(e){
+        this.jqx('close');
     }
 };
