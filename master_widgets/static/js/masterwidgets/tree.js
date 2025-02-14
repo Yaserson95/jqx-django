@@ -247,7 +247,10 @@ class MasterTree extends BaseMasterTree{
                 model_info.dialog = new MasterModelFormDialog(dialog_target, {
                 'parent': this,
                 'title': title,
-                'source': `${this.source}form/${model_info.type}/`
+                'source': `${this.source}form/${model_info.type}/`,
+                'formOptions':{
+                    'action': this.source,
+                }
             });
         }else{
             model_info.dialog.setTitle(title);

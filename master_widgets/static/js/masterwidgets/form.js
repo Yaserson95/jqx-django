@@ -1,4 +1,52 @@
 class MasterForm extends MasterWidget{
+    static getValidator(field, validator){
+        var val = {
+            'input': field,
+            'action': 'keyup, blur',
+        };
+        
+        switch(validator.rule){
+            case 'required':
+                val.rule = 'required';
+                val.message = 'Поле должно быть заполнено';
+                break;
+            case 'notnull':
+                val.message = 'Поле должно быть заполнено';
+                val.rule = function(input, commit){
+                    var val = $(input).val();
+                    return val !== "" && val !==null;
+                }
+                break;
+            case 'minValue':
+                val.rule = function(input, commit){
+                    var val = parseFloat($(input).val()||0);
+                    return val >= validator.limit_value;
+                }
+                break;
+            case 'maxValue':
+                val.rule = function(input, commit){
+                    var val = parseFloat($(input).val()||0);
+                    return val <= validator.limit_value;
+                }
+                break;
+            default:
+                val = {...val, ...validator};
+                break;
+        }
+        return val;
+    }
+
+    static parseVal(val, type){
+        if(val === '' || val === null) return null;
+        switch(type){
+            case 'date':
+            case 'datetime':
+                return new Date(Date.parse(val));
+            case 'number':
+                return parseInt(val);
+        }
+        return val;
+    }
     widgetOptionsPatterns(patterns={}){
 		return super.widgetOptionsPatterns({...patterns,...{
             'rowDefault': {'type': 'object', 'name': 'row_default', 'default':{
@@ -19,6 +67,10 @@ class MasterForm extends MasterWidget{
         return target;
     }
 
+    /**
+     * 
+     * @param {Array} template 
+     */
     updateTemplate(template){
         for(var i in template){
             if(Array.isArray(template[i].columns)){
@@ -36,39 +88,60 @@ class MasterForm extends MasterWidget{
                 this.fields_data.push(template[i]);
             }
         }
+        template.unshift({
+            'name':'errorLabel',
+            'type':'label'
+        });
     }
 
-    getValidatorRules(){
-        var rules = [];
+    updateValidators(field_data){
+        if(field_data.required){
+            var required_rule = (field_data.type === 'option')? 'notnull': 'required';
+            this.validators.push(MasterForm.getValidator(field_data.field, {'rule': required_rule}));
+        }
+
+        for(var i in field_data.validators){
+            this.validators.push(MasterForm.getValidator(field_data.field, field_data.validators[i]));
+        }
+    }
+
+    updateFields(){
         for(var i in this.fields_data){
             var field_data = this.fields_data[i];
-            var field = this.jqx('getComponentByName', field_data.name);
-            if(field_data.required){
-                rules.push({
-                    'input': field, 
-                    'message': `Поле ${field_data.label} должно быть заполнено`,
-                    'action': 'keyup, blur', 
-                    'rule': 'required'
-                });
-            }
+            field_data.field =  this.jqx('getComponentByName', field_data.name);
+            this.renderField(field_data);
         }
-        return rules;        
+    }
+    renderField(field_data){
+        switch(field_data.type){
+            case 'textarea':
+                $(field_data.field).jqxTextArea({
+                    'width': field_data.width,
+                    'height': field_data.height || 100,
+                });
+                break;
+        }
+        this.updateValidators(field_data);
+        return this;
     }
 
     init(opts){
         this.jqx_type = 'jqxForm';
         this.fields_data = [];
+        this.validators = [];
         super.init(opts);
     }
 
     render(){
         this.target.addClass('master-form');
         this.updateTemplate(this.attrs.template);
+        this.jqx('hideComponent', 'errorLabel');
         super.render();
+        this.updateFields();
 
         this.target.jqxValidator({
             'hintType': "label",
-            'rules': this.getValidatorRules(),
+            'rules': this.validators,
         });
     }
 
@@ -78,9 +151,11 @@ class MasterForm extends MasterWidget{
             value[this.fields_data[i].bind] = '';
         }
 
+
         this.target.val(value);
         this.target.find('.jqx-widget').each(function() {
             const widgetInfo = $(this).data('jqxWidget');
+            if(widgetInfo === undefined) return;
             switch (widgetInfo.widgetName) {
                 case 'jqxDropDownList':
                     $(this).jqxDropDownList('selectIndex', 0);
@@ -98,39 +173,63 @@ class MasterForm extends MasterWidget{
                     $(this).val('');
             }
         });
+        return this;
     }
 
-    value(values){
-        if(values !== undefined){
+    value(val){
+        if(val === undefined){
+            var values = {};
             for(var i in this.fields_data){
-                var bind = this.fields_data[i].bind;
-                //console.log(bind);
-                if(values[bind] === null || values[bind] === undefined)
-                    continue;
-
-
-                switch(this.fields_data[i].type){
-                    case 'date':
-                    case 'datetime':
-                        values[bind] = new Date(Date.parse(values[bind]));
-                        break;
-                }
+                if(this.fields_data[i].bind === undefined) continue;
+                values[this.fields_data[i].bind] = MasterForm.parseVal(
+                    $(this.fields_data[i].field).val(),
+                    this.fields_data[i].type
+                );
             }
+            return values;
         }
-        return this.target.val(values);
+
+        for(var i in this.fields_data){
+            var field = this.fields_data[i].field;
+            var value = val[this.fields_data[i].bind];
+
+            if(value === undefined) continue;
+
+            $(field).val(MasterForm.parseVal(value, this.fields_data[i].type));
+        }
     }
 
-    getFields(){
-        
-    }
+    async save(){
+        if(!this.validate()) return false;
+        var val = this.value();
+        val.csrfmiddlewaretoken = getСookie('csrftoken');
 
-    save(){
-        this.validate();
-        
+        try{
+            var data = await $.ajax(this.action, {
+                'method': 'PUT',
+                'data': val
+            });
+        }catch(e){
+            this.formError(`${e.status}: ${e.responseJSON.detail}`);
+            console.log(getСookie());
+            console.error(e);
+            //console.error(e.message);
+        }
+        return true;
     }
 
     validate(){
         return this.target.jqxValidator('validate');
+    }
+
+    formError(text){
+        var field = this.jqx('getComponentByName', 'errorLabel');
+        $(field).text(text);
+        if(text === ''){
+            this.jqx('hideComponent', 'errorLabel');
+        }else{
+            this.jqx('showComponent', 'errorLabel');
+        }
     }
 }
 
@@ -185,7 +284,7 @@ class MasterModelFormDialog extends MasterDialog{
 		return super.widgetOptionsPatterns({...patterns,...{
 			'buttons': {'type': 'array'},
             'source': {'type': 'string'},
-            'formOptions': {'type': 'object', 'default': {}, 'name': 'form_options'}
+            'formOptions': {'type': 'object', 'default': {}, 'name': 'form_options'},
         }});
 	}
     renderContent(panel){

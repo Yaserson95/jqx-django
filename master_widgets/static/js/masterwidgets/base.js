@@ -96,6 +96,18 @@ function faicon(icon){
     return $('<i/>', {'class': `fa fa-${icon}`});
 }
 
+function getСookie(name){
+	var keyvals = document.cookie.split('; ');
+	var cookie = {};
+	for(var i in keyvals){
+		var k = keyvals[i].split('=');
+		cookie[k[0]] = k[1];
+	}
+	if(name !== undefined)
+		return cookie[name];
+	return cookie;
+}
+
 class MasterWidget{
 	constructor(target, options){
 		this.target = this.initTarget($(target));

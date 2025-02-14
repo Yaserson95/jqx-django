@@ -1,7 +1,13 @@
 from django.db import models
 
 class Department(models.Model):
-    name = models.CharField('Название', max_length=255)
+    name = models.CharField('Название', max_length=100)
+    description = models.TextField(
+        verbose_name='Описание',
+        max_length=512,
+        null=True,
+        blank=True,
+    )
     parent = models.ForeignKey(
         'self',
         on_delete=models.CASCADE,
@@ -10,6 +16,7 @@ class Department(models.Model):
         blank=True,
         verbose_name='Родительское подразделение'
     )
+
     created_at = models.DateTimeField('Дата создания', auto_now_add=True)
 
     class Meta:
@@ -21,8 +28,26 @@ class Department(models.Model):
         return self.name
 
 class Employee(models.Model):
-    first_name = models.CharField('Имя', max_length=100)
-    last_name = models.CharField('Фамилия', max_length=100)
+    last_name = models.CharField(
+        verbose_name='Фамилия', 
+        max_length=100
+    )
+    first_name = models.CharField(
+        verbose_name='Имя', 
+        max_length=100
+    )
+    middle_name = models.CharField(
+        verbose_name='Отчество',
+        max_length=100,
+        null=True,
+        blank=True
+    )
+    email = models.EmailField(
+        verbose_name='Эл. почта',
+        max_length=50,
+        null=True,
+        blank=True
+    )
     department = models.ForeignKey(
         Department,
         on_delete=models.CASCADE,

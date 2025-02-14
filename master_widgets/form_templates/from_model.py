@@ -1,9 +1,11 @@
 from django.db import models as dm
+from .validators import get_validators
 
 #'text', 'option', 'blank', 'button', 'color', 'number', 'boolean', 'password', 'label', 'time', 'date', 'datetime', 'custom'. 
 BASE_FIELD_TYPES = {
     'label': dm.AutoField,
-    'text': (dm.CharField, dm.UUIDField,),
+    'text': (dm.CharField, dm.UUIDField),
+    'textarea': dm.TextField,
     'number': (dm.IntegerField, dm.FloatField,),
     'date': dm.DateField,
     'datetime': dm.DateTimeField,
@@ -17,7 +19,8 @@ def to_template_item(field: dm.Field):
         'type': field_type,
         'bind': field.name,
         'label': field.verbose_name,
-        'required': not field.null or not field.blank
+        'required': not field.null or not field.blank,
+        'validators': get_validators(field.validators)
     }
 
     if field.is_relation and isinstance(field, dm.ForeignKey):
@@ -28,19 +31,22 @@ def to_template_item(field: dm.Field):
 
     match field_type:
         case 'text':
-            item.update(to_text_field(dm.Field))
+            item.update(to_text_field(field))
         case 'label':
             item['required'] = False
+
+    if isinstance(field, dm.TextField):
+        item['component'] = 'jqxTextArea'
     
     return item
 
-def to_text_field(field: dm.CharField):
+def to_text_field(field: dm.CharField):        
     item = {
-        #'length': field.max_length
+        'length': getattr(field, 'max_length', 255)
     }
     return item
 
-    
+
 
 def to_choices_field(field:dm.Field, is_required: bool = False):
     options = [{'value':opt[0], 'label':opt[1]} for opt in field.choices]

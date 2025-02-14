@@ -30,8 +30,11 @@ class MasterDialog extends MasterWidget{
             'label': $('<span/>', {'class': 'header-label'}),
             'base': $('<div/>', {'class': 'master-dialog-header'})
         };
-        this.header.label.text(this.title);
-        return this.header.base.append(this.header.label);
+        this.header.label
+            .appendTo(this.header.base)
+            .text(this.title);
+
+        return this.header.base;
     }
     renderLayout(){
         this.layout = {
@@ -83,6 +86,11 @@ class MasterDialog extends MasterWidget{
     }
 
     setTitle(text){
+        //Check header label
+        if(this.header.label.parent().length === 0)
+            this.header.label = this.header.base.find('.header-label');
+
+        //Update title
         this.title = text;
         this.header.label.text(text);
         return this;
