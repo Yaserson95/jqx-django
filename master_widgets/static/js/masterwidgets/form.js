@@ -47,6 +47,56 @@ class MasterForm extends MasterWidget{
         }
         return val;
     }
+
+    static formatVal(val, type){
+        if(val === '' || val === null) return null;
+        switch(type){
+            case 'date':
+                return new Date(val).toISOString().slice(0, 10);
+            case 'datetime':
+                return new Date(val).toISOString();
+        }
+        return val.toString();
+    }
+
+    
+    static setValue(field_data, value){
+        value =  MasterForm.parseVal(value, field_data.type);
+        if(field_data.type === 'label')
+            $(field_data.field).text(value);
+        else $(field_data.field).val(value);
+    }
+
+    static getValue(field_data){
+        var field = $(field_data.field);
+        var widgetData = field.data('jqxWidget');
+        var widget = (widgetData!==undefined)? widgetData.widgetName: null;
+        var value;
+        switch(widget){
+            case 'jqxDropDownList':
+                value = field.jqxDropDownList('getSelectedItem').value;
+                break;
+            default:
+                value = (field_data.type === 'label')? field.text(): field.val();
+                break;
+        }
+        return MasterForm.formatVal(value, field_data.type);
+    }
+
+    static clearField(field_data){
+        switch(field_data.type){
+            case 'option':
+                $(field_data.field).jqxDropDownList('selectIndex', 0);
+                break;
+            case 'label':
+                $(field_data.field).text('');
+                break;
+            default:
+                $(field_data.field).val('');
+                break;
+        }
+    }
+
     widgetOptionsPatterns(patterns={}){
 		return super.widgetOptionsPatterns({...patterns,...{
             'rowDefault': {'type': 'object', 'name': 'row_default', 'default':{
@@ -146,34 +196,9 @@ class MasterForm extends MasterWidget{
     }
 
     clear(){
-        var value = {};
         for(var i in this.fields_data){
-            value[this.fields_data[i].bind] = '';
+            MasterForm.clearField(this.fields_data[i]);
         }
-
-
-        this.target.val(value);
-        this.target.find('.jqx-widget').each(function() {
-            const widgetInfo = $(this).data('jqxWidget');
-            if(widgetInfo === undefined) return;
-            switch (widgetInfo.widgetName) {
-                case 'jqxDropDownList':
-                    $(this).jqxDropDownList('selectIndex', 0);
-                    break;
-                case 'jqxDateTimeInput':
-                    $(this).jqxDateTimeInput('val', null);
-                    break;
-                case 'jqxCheckBox':
-                    $(this).jqxCheckBox('uncheck');
-                    break;
-                case 'jqxRadioButton':
-                    $(this).jqxRadioButton('uncheck');
-                    break;
-                default:
-                    $(this).val('');
-            }
-        });
-        return this;
     }
 
     value(val){
@@ -181,38 +206,34 @@ class MasterForm extends MasterWidget{
             var values = {};
             for(var i in this.fields_data){
                 if(this.fields_data[i].bind === undefined) continue;
-                values[this.fields_data[i].bind] = MasterForm.parseVal(
-                    $(this.fields_data[i].field).val(),
-                    this.fields_data[i].type
-                );
+                values[this.fields_data[i].bind] = MasterForm.getValue(this.fields_data[i]);
             }
             return values;
         }
 
         for(var i in this.fields_data){
-            var field = this.fields_data[i].field;
             var value = val[this.fields_data[i].bind];
 
             if(value === undefined) continue;
-
-            $(field).val(MasterForm.parseVal(value, this.fields_data[i].type));
+            MasterForm.setValue(this.fields_data[i], value);
         }
     }
 
     async save(){
         if(!this.validate()) return false;
-        var val = this.value();
-        val.csrfmiddlewaretoken = getСookie('csrftoken');
+
+        var request = Object.assign({}, this.save_request);
+        request.data = this.value();
+        request.data.csrfmiddlewaretoken = getСookie('csrftoken');
+        console.log(request.data);
 
         try{
-            var data = await $.ajax(this.action, {
-                'method': 'PUT',
-                'data': val
-            });
+            var data = await $.ajax(this.action, request);
+            this.formError('');
+            console.log(data);
+
         }catch(e){
             this.formError(`${e.status}: ${e.responseJSON.detail}`);
-            console.log(getСookie());
-            console.error(e);
             //console.error(e.message);
         }
         return true;
@@ -230,6 +251,14 @@ class MasterForm extends MasterWidget{
         }else{
             this.jqx('showComponent', 'errorLabel');
         }
+        return this;
+    }
+
+    formAction(url, request=null){
+        this.action = url;
+        if(request !== null)
+            this.save_request = request;
+        return this;
     }
 }
 
@@ -272,6 +301,16 @@ class MasterModelForm extends MasterLoadedWidget{
     save(){
         if(this.widget !== undefined)
             this.widget.save();
+    }
+
+    formAction(url, request=null){
+        if(this.widget !== undefined)
+            this.widget.formAction(url, request);
+        else{
+            this.config.action = url;
+            if(request !== null)
+                this.config.saveRequest = request;
+        }
     }
 }
 

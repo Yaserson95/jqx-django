@@ -179,6 +179,10 @@ class MasterTreeItemMenu extends MasterContextMenu{
             case 'edit':
                 this.parent.openEditDialog(e.args.data, this.current_data);
                 break;
+            case 'remove':
+                this.parent.openRemoveDialog(e.args.data, this.current_data);
+                break;
+
         }
         return super.itemClick(e);
     }
@@ -266,6 +270,10 @@ class MasterTree extends BaseMasterTree{
         var value = {};
 
         value[type.parent] = (node_info !== null)? node_info.value: null;
+        dialog.form.formAction(
+            `${this.source}?item_type=${node_info.item_type}`, 
+            {'method': 'POST'}
+        );
         dialog.open(value);
     }
 
@@ -280,9 +288,29 @@ class MasterTree extends BaseMasterTree{
 
             var title = `Изменить ${type.name.toLowerCase()} "${data.label}"`;
             var dialog = this.__getModelDialog(type, title);
+            dialog.form.formAction(
+                `${this.source}${node_info.value}/?item_type=${node_info.item_type}`, 
+                {'method': 'PUT'}
+            );
+
             dialog.open(data.item);
         }catch(e){
             console.error(e.message);
+        }
+    }
+
+    async openRemoveDialog(item_data, node_info){
+        var type = this.item_types[node_info.item_type];
+        var action = `${this.source}${node_info.value}/?item_type=${node_info.item_type}`;
+        console.log(node_info);
+        var conf = confirm(`Вы действительно хотите удалить ${type.name.toLowerCase()} "${node_info.label}"`);
+        try{
+            if(conf){
+                var data = await $.ajax(action,{'method': 'DELETE'});
+                this.jqx('removeItem', node_info.element);
+            }
+        }catch(e){
+            console.error(e);
         }
     }
 };

@@ -1,5 +1,6 @@
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import F
+from django.forms import ValidationError
 from rest_framework.serializers import BaseSerializer
 from .exceptions import ValidateOptionsException
 
@@ -37,3 +38,13 @@ def validate_options(options: dict, validators:dict)->dict:
         validate_options_type(options[key], key, validators[key]['type'])
     return options
 
+def in_children(instance, value, field:str = 'parent')->bool:
+    if instance.pk == value:
+        return True
+    
+    children = type(instance).objects.filter(**{field: instance})
+    for cld in children:
+        if in_children(cld, value, field):
+            return True
+        
+    return False

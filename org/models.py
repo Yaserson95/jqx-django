@@ -1,4 +1,5 @@
 from django.db import models
+from master_widgets.models import TreeForeignKey
 
 class Department(models.Model):
     name = models.CharField('Название', max_length=100)
@@ -8,7 +9,7 @@ class Department(models.Model):
         null=True,
         blank=True,
     )
-    parent = models.ForeignKey(
+    parent = TreeForeignKey(
         'self',
         on_delete=models.CASCADE,
         related_name='children',
