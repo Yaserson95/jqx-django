@@ -1,11 +1,13 @@
 from django.db.models import QuerySet, Value, F, OuterRef, Exists, Case, When, Expression
 from django.http.response import Http404
+from django.core.exceptions import ValidationError as DValidationError
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.decorators import action
 
 from ..exceptions import ValidateOptionsException
+from rest_framework.exceptions import ValidationError
 
 from ..helpers import model_field_exists, expr, validate_options
 from ..form_templates import from_model
@@ -151,14 +153,6 @@ class MasterTreeViewSet(ModelViewSet):
             'itemsMenu': True,
         })
     
-    def retrieve(self, request, *args, **kwargs)->Response:
-        responce = super().retrieve(request, *args, **kwargs)
-        responce.data = {
-            'label': str(self.get_object()),
-            'item': responce.data
-        }
-        return responce
-    
     def get_item_types(self):
         types = [self.get_model_info(self.get_queryset().model, 0)]
         if not hasattr(self, 'children_nodes'):
@@ -181,7 +175,8 @@ class MasterTreeViewSet(ModelViewSet):
             'name': model._meta.verbose_name,
             'plural_name': model._meta.verbose_name_plural,
             'rules': self.get_object_rules(index),
-            'parent': self.get_parent_field(index)
+            'parent': self.get_parent_field(index),
+            'id': model._meta.pk.name
         }
     
     def get_object_rules(self, item_type=0):
@@ -213,3 +208,9 @@ class MasterTreeViewSet(ModelViewSet):
                 validate_options(e, CHILDREN_TYPE_PATTERNS)
         except ValidateOptionsException as e:
             raise ValidateOptionsException('In %d children node: %s' % (i, e.args[0]))
+        
+    def perform_update(self, serializer):
+        try:
+            return super().perform_update(serializer)
+        except DValidationError as e:
+            raise ValidationError({e.params['name']: [e.message,]})

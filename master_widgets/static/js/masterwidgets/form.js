@@ -104,7 +104,8 @@ class MasterForm extends MasterWidget{
                 'date':{'labelWidth': '40%', 'width': '98%'}
             }},
             'action':{'type': 'string', 'default':'/'},
-            'saveRequest': {'type': 'object', 'name': 'save_request', 'default':{'method': 'POST'}}
+            'saveRequest': {'type': 'object', 'name': 'save_request', 'default':{'method': 'POST'}},
+            'id': {'type':'string', 'default': 'id'}
         }});
 	}
 
@@ -145,14 +146,27 @@ class MasterForm extends MasterWidget{
     }
 
     updateValidators(field_data){
+        //Add required field validation rule
         if(field_data.required){
             var required_rule = (field_data.type === 'option')? 'notnull': 'required';
             this.validators.push(MasterForm.getValidator(field_data.field, {'rule': required_rule}));
         }
 
-        for(var i in field_data.validators){
+        //Add other validation rules
+        for(var i in field_data.validators)
             this.validators.push(MasterForm.getValidator(field_data.field, field_data.validators[i]));
-        }
+
+        //Add form errors validation
+        this.validators.push({
+            'message':'Неправильные данные',
+            'input': field_data.field,
+            'action': 'keyup, blur',
+            'rule': (input, commit)=>{
+                if(this.form_errors[field_data.name] !== undefined)
+                    return false;
+                return true;
+            }
+        })
     }
 
     updateFields(){
@@ -179,6 +193,7 @@ class MasterForm extends MasterWidget{
         this.jqx_type = 'jqxForm';
         this.fields_data = [];
         this.validators = [];
+        this.form_errors = {};
         super.init(opts);
     }
 
@@ -196,6 +211,8 @@ class MasterForm extends MasterWidget{
     }
 
     clear(){
+        this.formError('');
+        this.form_errors = {};
         for(var i in this.fields_data){
             MasterForm.clearField(this.fields_data[i]);
         }
@@ -206,7 +223,10 @@ class MasterForm extends MasterWidget{
             var values = {};
             for(var i in this.fields_data){
                 if(this.fields_data[i].bind === undefined) continue;
-                values[this.fields_data[i].bind] = MasterForm.getValue(this.fields_data[i]);
+                var value = MasterForm.getValue(this.fields_data[i]);
+                if(this.fields_data[i].bind === this.id && value === null)
+                    continue;
+                values[this.fields_data[i].bind] = value;
             }
             return values;
         }
@@ -217,30 +237,47 @@ class MasterForm extends MasterWidget{
             if(value === undefined) continue;
             MasterForm.setValue(this.fields_data[i], value);
         }
+
+        this.jqx((val[this.id] === undefined || val[this.id]===null)? 'hideComponent': 'showComponent', this.id);
     }
 
     async save(){
+        var request = Object.assign({}, this.save_request);
+
+        this.form_errors = {};
+        this.formError('');
+
         if(!this.validate()) return false;
 
-        var request = Object.assign({}, this.save_request);
         request.data = this.value();
         request.data.csrfmiddlewaretoken = getСookie('csrftoken');
-        console.log(request.data);
 
         try{
             var data = await $.ajax(this.action, request);
-            this.formError('');
-            console.log(data);
-
+            this.trigger({'type': 'save', 'response': data});
         }catch(e){
-            this.formError(`${e.status}: ${e.responseJSON.detail}`);
-            //console.error(e.message);
+            console.error(e);
+            switch(e.status){
+                case 400:
+                    this.formError('Исправте следующие ошибки:');
+                    this.__validationErrors(e.responseJSON);
+                    this.validate();
+                    break;
+                default:
+                    this.formError(`${e.status}: ${e.statusText}`);
+                    break;
+            }
         }
         return true;
     }
 
     validate(){
         return this.target.jqxValidator('validate');
+    }
+    __validationErrors(errors){
+        if(typeof errors === 'object')
+            this.form_errors = errors;
+        else this.form_errors = {}
     }
 
     formError(text){

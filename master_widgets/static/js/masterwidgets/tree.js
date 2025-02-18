@@ -10,6 +10,7 @@ class BaseMasterTree extends MasterWidget{
         this.jqx_type = 'jqxTree';
         this.opened_nodes = {};
         this.nodes_info = [];
+        this.__is_add = false;
         super.init(attrs);
         this.adapter = new $.jqx.dataAdapter(this.init_adapter());
     }
@@ -51,14 +52,28 @@ class BaseMasterTree extends MasterWidget{
 
     render(){
         super.render();
-        this.target.on('expand', (...args)=>{this.onExpand(...args)});
+        this.target.on({
+            'expand': (...args)=>{this.onExpand(...args)},
+            'collapse': (...args)=>{this.onCollapse(...args)}
+        });
         this.loadNodeChildren();
     }
 
     addItem(node, item_data){
-        this.jqx('addTo', item_data, node);
+        //Update item data
+        var item = this.getItemContent(item_data, this.nodes_info.length);
+        //Add item to tree
+        this.jqx('addTo', item, node);
+        //Get item element
+        var element = this.target.find('#'+item.id)[0];
+        element.treeID = this.nodes_info.length;
+        item_data.element = element;
+        //Save additional item data
+        this.nodes_info.push(item_data);
+        return element;
     }
     removeItem(node){
+        this.nodes_info[node.treeID] = null;
         this.jqx('removeItem', node);
     }
     getItem(node){
@@ -67,7 +82,17 @@ class BaseMasterTree extends MasterWidget{
             data = {...data, ...this.nodes_info[node.treeID]};
         return data;
     }
+    getLastItem(node = null){
+        if(node === null) node = this.target[0];
+        var cld = $(node).find('>ul>li:last-child');
+        if(cld.length === 0)
+            return null;
+        return cld[cld.length - 1];
+    }
+
     getItemById(node_id){
+        if(node_id === null)
+            return null;
         var node = this.target.find('#'+node_id);
         if(node.length === 0)
             return null;
@@ -99,14 +124,7 @@ class BaseMasterTree extends MasterWidget{
         var id = data.item_id;
         var node = (id!==null)? this.getItemById(id).element: null;
         for(var i in data.results){
-            var item_data = data.results[i];
-            var item = this.getItemContent(item_data, this.nodes_info.length);
-            this.addItem(node, item);
-
-            var element = this.target.find('#'+item.id)[0];
-            element.treeID = this.nodes_info.length;
-            item_data.element = element;
-            this.nodes_info.push(item_data);
+            this.addItem(node, data.results[i]);
         }
         this.showNodeLoader(node, false);
         this.__updateNode(data);
@@ -116,16 +134,28 @@ class BaseMasterTree extends MasterWidget{
         var node_data = this.getItemLoader(node!==null?node.id:'root');
         var target_node = this.target.find('#'+node_data.id);
         if(show && (target_node.length === 0)){
-            this.addItem(node, node_data);
+            this.jqx('addTo', node_data, node);
         }else if(target_node.length !== 0){
-            this.removeItem(target_node[0]);
+            this.jqx('removeItem', target_node[0]);
         }
+    }
+
+    isExpand(element){
+        var item = this.opened_nodes[element.id];
+        return (item !== undefined)? item.expand: false;
     }
 
     onExpand(e){
         if(this.opened_nodes[e.args.element.id] === undefined)
             this.loadNodeChildren(e.args.element);
+
+        this.opened_nodes[e.args.element.id].expand = true;
     }
+    onCollapse(e){
+        if(this.opened_nodes[e.args.element.id] !== undefined)
+            this.opened_nodes[e.args.element.id].expand = false;
+    }
+
     nodeId(node_id=null){
         return `${this.id()}-${node_id!==null?node_id:'root'}`;
     }
@@ -141,8 +171,9 @@ class BaseMasterTree extends MasterWidget{
 
     __updateNode(data){
         var node_info = this.opened_nodes[(data.item_id!==null)? data.item_id: 'root'];
+        var parent_node = (data.item_id!==null)? this.target.find('#'+data.item_id): null;
         node_info.next = (data.next !== null);
-        node_info.last_node = this.node_id - 1;
+        node_info.last_node = this.getLastItem(parent_node);
         node_info.in_process = false;
     }
 };
@@ -177,10 +208,10 @@ class MasterTreeItemMenu extends MasterContextMenu{
                 this.parent.openCreateDialog(e.args.data, this.current_data);
                 break;
             case 'edit':
-                this.parent.openEditDialog(e.args.data, this.current_data);
+                this.parent.openEditDialog(this.current_data);
                 break;
             case 'remove':
-                this.parent.openRemoveDialog(e.args.data, this.current_data);
+                this.parent.openRemoveDialog(this.current_data);
                 break;
 
         }
@@ -205,10 +236,18 @@ class MasterTreeItemMenu extends MasterContextMenu{
         }
         return true;
     }
-
 }
 
 class MasterTree extends BaseMasterTree{
+    static toItemData(data, info){
+        return {
+            'label': data.label,
+            'value': data.item[info.id],
+            'parent': data.item[info.parent],
+            'item_type': info.type,
+            'has_items': data.has_items || false
+        };
+    }
     widgetOptionsPatterns(){
 		return super.widgetOptionsPatterns({
 			'itemTypes': {'type': 'array', 'name': 'item_types'},
@@ -244,22 +283,116 @@ class MasterTree extends BaseMasterTree{
         });
     }
 
-    __getModelDialog(model_info, title){
+    getNodeByValue(value, item_type=0){
+        var nodes = this.jqx('getItems');
+        
+        if(value === null) return null;
+        
+        for(var i=0; i<nodes.length; i++){
+            var element_id = nodes[i].element.treeID || null;
+            var val = nodes[i].value;
+            var node_data = this.nodes_info[element_id] || null;
+            if(node_data === null) continue;
+
+            if(value === val && node_data.item_type === item_type)
+                return nodes[i];
+        }
+        return null;
+    }
+
+    getFormSource(item_type){
+        return `${this.source}form/${item_type}/`;
+    }
+
+    /**
+     * Get information by create action
+     * @param {int} item_type 
+     * @returns {object}
+     */
+    getAddActionInfo(item_type){
+        var type_info = this.item_types[item_data.item_type];
+        return {
+            'label': `Создать ${type_info.name.toLowerCase()}`,
+            'action':`${this.source}?item_type=${item_type}`,
+            'request': {'method': 'POST'}
+        };
+    }
+
+    /**
+     * Get information by update action
+     * @param {object} node_info 
+     * @returns {object}
+     */
+    getUpdateActionInfo(node_info){
+        var type_info = this.item_types[node_info.item_type];
+        return {
+            'label': `Изменить ${type_info.name.toLowerCase()} "${node_info.label}"`,
+            'action':`${this.source}${node_info.value}/?item_type=${node_info.item_type}`,
+            'request': {'method': 'PUT'}
+        };
+    }
+
+    __initModelDialog(node_info, value, item_type = 0, add=false){
+        var model_info = this.item_types[node_info];
+        var action_info = add? this.getAddActionInfo(item_type):
+            this.getUpdateActionInfo(node_info);
+
+        //If dialog not created
         if(model_info.dialog === undefined){
             var dialog_target = $('<div/>', {'class': 'master-tree-dialog model-dialog'})
-                .appendTo(this.target);            
-                model_info.dialog = new MasterModelFormDialog(dialog_target, {
+                .appendTo(this.target);
+
+            //Create dialog
+            model_info.dialog = new MasterModelFormDialog(dialog_target, {
+                'parent': this,
+                'title': action_info.label,
+                'source': this.getFormSource(item_type),
+                'formOptions':{
+                    'action': action_info.action,
+                    'id': model_info.id,
+                    'saveRequest': action_info.request
+                }
+            });
+
+            //Add info
+            model_info.dialog.info = {
+                'type': model_info.type, 
+                'parent': model_info.parent, 
+                'id': model_info.id
+            };
+
+            //Init save action
+            model_info.form.on('save', (e)=>{
+                this.onSaveForm(e);
+            });
+        }else{
+
+        }
+    }
+
+    __getModelDialog(model_info, title, value, add=false){
+        if(model_info.dialog === undefined){
+            var dialog_target = $('<div/>', {'class': 'master-tree-dialog model-dialog'})
+                .appendTo(this.target);       
+
+            model_info.dialog = new MasterModelFormDialog(dialog_target, {
                 'parent': this,
                 'title': title,
                 'source': `${this.source}form/${model_info.type}/`,
                 'formOptions':{
                     'action': this.source,
+                    'id': model_info.id
                 }
             });
+            model_info.dialog.info = {'type': model_info.type, 'parent': model_info.parent, 'id': model_info.id};
         }else{
             model_info.dialog.setTitle(title);
             model_info.dialog.form.clear();
         }
+        model_info.dialog.form.on('save', (e)=>{
+            this.onSaveForm(e);
+        });
+        
         return model_info.dialog;
     }
 
@@ -269,16 +402,21 @@ class MasterTree extends BaseMasterTree{
         var dialog = this.__getModelDialog(type, title);
         var value = {};
 
+        this.__is_add = true;
+        
         value[type.parent] = (node_info !== null)? node_info.value: null;
         dialog.form.formAction(
-            `${this.source}?item_type=${node_info.item_type}`, 
+            `${this.source}?item_type=${item_data.item_type}`, 
             {'method': 'POST'}
         );
+        dialog.info.node = node_info;
         dialog.open(value);
     }
 
-    async openEditDialog(item_data, node_info){
+    async openEditDialog(node_info){
         var type = this.item_types[node_info.item_type];
+        this.__is_add = false;
+
         try{
             var data = await $.ajax({
                 'url': `${this.source}${node_info.value}/`,
@@ -292,17 +430,17 @@ class MasterTree extends BaseMasterTree{
                 `${this.source}${node_info.value}/?item_type=${node_info.item_type}`, 
                 {'method': 'PUT'}
             );
-
+            
+            dialog.info.node = node_info;
             dialog.open(data.item);
         }catch(e){
             console.error(e.message);
         }
     }
 
-    async openRemoveDialog(item_data, node_info){
+    async openRemoveDialog(node_info){
         var type = this.item_types[node_info.item_type];
         var action = `${this.source}${node_info.value}/?item_type=${node_info.item_type}`;
-        console.log(node_info);
         var conf = confirm(`Вы действительно хотите удалить ${type.name.toLowerCase()} "${node_info.label}"`);
         try{
             if(conf){
@@ -311,6 +449,46 @@ class MasterTree extends BaseMasterTree{
             }
         }catch(e){
             console.error(e);
+        }
+    }
+
+    onSaveForm(e){
+        var dialog = $(e.target).data('masterWidget').parent;
+        var newData = e.response;
+        if(this.__is_add){
+            this.__add(newData, dialog.info);
+        }else{
+
+        }
+    }
+
+    __add(item, info){
+        var parent_id = item.item[info.parent];
+        var item_data = MasterTree.toItemData(item, info);
+        
+        //If element was added in root
+        if(parent_id === null){
+            this.addItem(null, item_data);
+            return;
+        }
+        var parent_item = this.getNodeByValue(parent_id);
+        
+        //If element was added in unloaded node
+        if(parent_item === null)
+            return;
+        
+        //If element was added in empty node
+        if(!parent_item.hasItems){
+            this.showNodeLoader(parent_item.element);
+            this.jqx('expandItem', parent_item.element);
+            return;
+        }
+
+        if(parent_item.isExpanded){
+            //If element was added in expanded node
+            this.addItem(parent_item.element, MasterTree.toItemData(item, info));
+        }else{
+            this.jqx('expandItem', parent_item.element);
         }
     }
 };

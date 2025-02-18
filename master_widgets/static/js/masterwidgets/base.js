@@ -130,6 +130,7 @@ class MasterWidget{
 
 	render(){
 		this.jqx(this.attrs);
+		this.target.data('masterWidget', this);
 	}
 
 	jqx(...args){
@@ -139,6 +140,12 @@ class MasterWidget{
 	}
 	id(){
 		return this.target.attr('id');
+	}
+	trigger(...args){
+		return this.target.trigger(...args);
+	}
+	on(...args){
+		return this.target.on(...args);
 	}
 };
 
@@ -185,6 +192,7 @@ class MasterLoadedWidget extends MasterWidget{
 	}
 
 	afterLoading(config){
+		this.config.parent = this.parent;
 		return new this.widget_class(this.target, {...config, ...this.config});
 	}
 	showSpinner(show=true){}
