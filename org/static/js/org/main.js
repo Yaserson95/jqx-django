@@ -5,6 +5,8 @@
             'width': '100%',
             'height': '400px',
             'ordering': 'item_type',
+            'allowDrag': true,
+            'allowDrop': true
         });
     });
 });

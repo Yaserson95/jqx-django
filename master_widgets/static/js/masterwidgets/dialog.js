@@ -84,6 +84,9 @@ class MasterDialog extends MasterWidget{
     open(){
         this.jqx('open');
     }
+    close(){
+        this.jqx('close');
+    }
 
     setTitle(text){
         //Check header label
