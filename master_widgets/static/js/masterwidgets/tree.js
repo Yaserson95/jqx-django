@@ -45,6 +45,8 @@ class BaseMasterTree extends MasterWidget{
             var parent_item = this.getItem(parent_node);
             this.node_request.parent = parent_item.value;
             this.node_request.item_id = parent_item.id;
+            if(parent_item.exclude !== undefined)
+                this.node_request.exclude = parent_item.exclude.join(';');
         }
 
         this.showNodeLoader(parent_node);
@@ -385,10 +387,22 @@ class MasterTree extends BaseMasterTree{
         dialog.close();
     }
 
-    async dragEnd(drag_item, drop_item, args, drop_position, tree){
-        
-        console.log(drag_item.parentElement);
+    dragEnd(drag_item, drop_item, drop_position, tree){
+        var drop_node = this.getItem(drop_item.element);
+        var drag_node = this.getItem(drag_item.element);
 
+        if(tree === 'inside'){
+            if(drop_node.item_type !== 0) return false;
+            if(!drop_item.isExpanded)
+                this.__addExcludes(drop_node.element.treeID, drag_node.value, drag_node.item_type);
+        }else{
+            if(drop_item.parentElement === drag_item.parentElement)
+                return true;
+            if(drag_node.item_type !== 0 && drop_item.parentElement === null)
+                return false;
+        }
+
+        this.__updateParent(drag_node, (tree === 'inside')? drop_node.value: drop_node.parent);
         return true;
     }
 
@@ -485,6 +499,21 @@ class MasterTree extends BaseMasterTree{
         }else{
             this.jqx('updateItem', info.current.element, {'label': item_data.label});
         }
+    }
+
+    __updateParent(node_info, parent){
+        var type = this.item_types[node_info.item_type];
+        var action = this.getUpdateActionInfo(node_info);
+        action.request.method = 'PATCH';
+        action.request.data = {};
+        action.request.data[type.parent] = parent;
+        $.ajax(action.action, action.request);
+    }
+    __addExcludes(tree_id, value, item_type){
+        if(this.nodes_info[tree_id].exclude === undefined)
+            this.nodes_info[tree_id].exclude = [];
+        this.nodes_info[tree_id].exclude.push(`${item_type},${value}`);
+        console.log(this.nodes_info[tree_id].exclude);
     }
 };
 
