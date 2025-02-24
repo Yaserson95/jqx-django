@@ -29,6 +29,9 @@ def to_template_item(field: dm.Field):
     if field.choices:
         item.update(to_choices_field(field, item['required']))
 
+    if isinstance(field, dm.ManyToManyField):
+        item['hidden'] = True
+
     match field_type:
         case 'text':
             item.update(to_text_field(field))
@@ -72,11 +75,13 @@ def get_field_type(field:dm.Field):
             return type_name
     return 'custom'
 
-def from_model(model, extra_fields:dict = {}) -> list:
-    fields = model._meta.fields
+def from_model(model:dm.Model, extra_fields:dict = {}) -> list:
     template = []
 
-    for field in fields:
+    for field in model._meta.get_fields():
+        if isinstance(field, dm.ManyToOneRel):
+            continue
+
         temp = to_template_item(field)
         if field.name in extra_fields:
             temp.update(extra_fields[field.name])

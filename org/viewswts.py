@@ -23,5 +23,3 @@ class OrgStructureViewSet(MasterTreeViewSet):
             'serializer': EmployeeSerializer
         }
     ]
-
-#Department._meta.fields.

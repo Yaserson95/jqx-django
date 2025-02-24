@@ -59,18 +59,26 @@ class MasterTreeViewSet(ModelViewSet):
         return super().filter_queryset(qs)
     
     def list_queryset(self, qs:QuerySet, parent=None):
+        excludes = self.get_excludes()
         qs = qs.filter(**{self.parent_field: parent})     
         qs = self.update_queryset(qs, 
             value_field=getattr(self, 'value_field'), 
             label_field=getattr(self, 'label_field'),
             has_items=self.has_items_queryset()
         )
+
+        if 0 in excludes:
+            qs = qs.exclude(pk__in=excludes[0])
+
         if not hasattr(self, 'children_nodes') or parent is None:
             return qs
         
         qs = qs.order_by()
         for i in range(0, len(self.children_nodes)):
-            qs = qs.union(self.get_childeren_queryset(i, parent).order_by())
+            clild_qs = self.get_childeren_queryset(i, parent).order_by()
+            if i + 1 in excludes:
+                clild_qs = clild_qs.exclude(pk__in=excludes[i + 1])
+            qs = qs.union(clild_qs)
 
         return qs
     
@@ -100,7 +108,7 @@ class MasterTreeViewSet(ModelViewSet):
     def update_queryset(self, qs:QuerySet, value_field:str, label_field:str, parent_field: str = 'parent', has_items=Value(False), index:int=0):
         if value_field is None or label_field is None:
             raise Exception('Parametres "value_field" or "label_field" is not defined')
-        
+
         annotations = {
             'label': expr(label_field),
             'value': expr(value_field),
@@ -215,6 +223,17 @@ class MasterTreeViewSet(ModelViewSet):
         except DValidationError as e:
             raise ValidationError({e.params['name']: [e.message,]})
         
-    def get_excludes(self):
-        exclude = self.request.GET.get('exclude')
-        
+    def get_excludes(self)->dict:
+        r = self.request.GET.get('exclude', None)
+        excludes = {}
+
+        if r is None:
+            return {}
+
+        for item in r.split(';'):
+            e = item.split(',')
+            key = int(e[0])
+            if key not in excludes:
+                excludes[key] = []
+            excludes[key].append(int(e[1]))
+        return excludes

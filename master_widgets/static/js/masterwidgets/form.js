@@ -165,6 +165,19 @@ class MasterForm extends MasterWidget{
                 if(this.form_errors[field_data.name] !== undefined)
                     return false;
                 return true;
+            },
+            hintRender:(message, input)=>{
+                var server_messages = this.form_errors[field_data.name];
+                var input_data = input.data('jqxWidget');
+                input.addClass('jqx-validator-error-element');
+                if(typeof input_data === 'object'){
+                    console.log(input_data);
+                    input_data.label.insertBefore(input_data.bar);
+                    return input_data.label.html(server_messages.join('<br/>'));
+                }
+                return $('<label/>', {'class':'jqx-validator-error-label'})
+                    .insertAfter(input)
+                    .html(server_messages.join('<br/>'));
             }
         })
     }
@@ -173,6 +186,8 @@ class MasterForm extends MasterWidget{
         for(var i in this.fields_data){
             var field_data = this.fields_data[i];
             field_data.field =  this.jqx('getComponentByName', field_data.name);
+            if(field_data.hidden)
+                this.jqx('hideComponent', field_data.name);
             this.renderField(field_data);
         }
     }
@@ -182,6 +197,7 @@ class MasterForm extends MasterWidget{
                 $(field_data.field).jqxTextArea({
                     'width': field_data.width,
                     'height': field_data.height || 100,
+                    'theme': this.attrs.theme,
                 });
                 break;
         }

@@ -109,6 +109,38 @@ function getСookie(name){
 }
 
 class MasterWidget{
+	static themes_base = '/static/css/jqx/';
+	static getLoadedStyles(){
+		var styles = [];
+		$(document.head).find('link[rel="stylesheet"]').each(function(i,e){
+			var href = $(e).attr('href');
+			if(href.startsWith(MasterWidget.themes_base))
+				styles.push(href.substring(MasterWidget.themes_base.length));
+		});
+
+		return styles;
+	}
+
+	static openTheme(theme){
+		var themes = this.getLoadedStyles();
+		if(themes.indexOf(theme) !== -1)
+			return;
+
+		var theme_path = `${this.themes_base}jqx.${theme}.css`;
+		var style = $('<link/>', {'rel': 'stylesheet', 'href': theme_path});
+		$(document.head).append(style);
+		return style;
+	}
+
+	static set theme(theme){
+		this.openTheme(theme);
+		this.__theme = theme;
+	}
+
+	static get theme(){
+		return this.__theme || 'base';
+	}
+
 	constructor(target, options){
 		this.target = this.initTarget($(target));
 		this.init(options);
@@ -116,7 +148,7 @@ class MasterWidget{
 	}
 	widgetOptionsPatterns(patterns = {}){
 		return {...patterns, ...{
-			'parent':{'required': false, 'type': MasterWidget}
+			'parent':{'required': false, 'type': MasterWidget},
 		}};
 	}
 
@@ -129,6 +161,12 @@ class MasterWidget{
 	}
 
 	render(){
+		if(this.attrs.theme === undefined){
+			if(this.parent !== null)
+				this.attrs.theme = this.parent.theme;
+			else this.attrs.theme = MasterWidget.theme;
+		}
+
 		this.jqx(this.attrs);
 		this.target.data('masterWidget', this);
 	}
@@ -146,6 +184,17 @@ class MasterWidget{
 	}
 	on(...args){
 		return this.target.on(...args);
+	}
+
+	get theme(){
+		return this.attrs.theme;
+	}
+
+	set theme(theme){
+		this.openTheme(theme);
+		this.attrs.theme = theme;
+		if(this.target.data('masterWidget'))
+			this.jqx({'theme': theme });
 	}
 };
 
@@ -199,21 +248,22 @@ class MasterLoadedWidget extends MasterWidget{
 }
 
 (jQuery)(function($){
-	$.fn.inParents = function(elem){
-		/**
-		 * @type {Array}
-		 */
-		var parents = $(elem).parents().toArray();
-		var elements = $(this).toArray();
+	$.fn.extend({
+		'inParents': function(elem){
+			var parents = $(elem).parents().toArray();
+			var elements = $(this).toArray();
 
-		parents.unshift($(elem)[0]);
+			parents.unshift($(elem)[0]);
 
-		for(var i in parents){
-			for(var j in elements){
-				if(elements[j]===parents[i])
-					return parents[i];
+			for(var i in parents){
+				for(var j in elements){
+					if(elements[j]===parents[i])
+						return parents[i];
+				}
 			}
+			return false;
 		}
-		return false;
-	}
+	});
+
+	$.masterWidget = MasterWidget;
 });

@@ -28,6 +28,16 @@ class Department(models.Model):
     def __str__(self):
         return self.name
 
+class WorkGroup(models.Model):
+    name = models.CharField(
+        verbose_name='Название',
+        max_length=100
+    )
+    description = models.TextField(
+        verbose_name='Описание',
+        max_length=255
+    )
+
 class Employee(models.Model):
     last_name = models.CharField(
         verbose_name='Фамилия', 
@@ -57,6 +67,12 @@ class Employee(models.Model):
     )
     position = models.CharField('Должность', max_length=150)
     hire_date = models.DateField('Дата приема')
+
+    groups = models.ManyToManyField(WorkGroup,
+        null=True,
+        blank=True, 
+        related_name='users'
+    )
 
     class Meta:
         verbose_name = 'Сотрудник'

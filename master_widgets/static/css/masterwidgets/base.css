@@ -43,3 +43,7 @@
     min-height:40px;
     height:40px;
 }
+
+.jqx-validator-error-label{
+    margin-top: 2px;
+}
