@@ -1,3 +1,12 @@
 #products-grid{
     width: 100%;
 }
+
+.master-tree-dialog.item-department .master-dialog-icon, 
+#org-structure .item-department > .master-tree-icon{
+    color: #8d0000;
+}
+.master-tree-dialog.item-employee .master-dialog-icon, 
+#org-structure .item-employee > .master-tree-icon{
+    color: #0400d4;
+}

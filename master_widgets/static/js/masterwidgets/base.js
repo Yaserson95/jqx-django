@@ -7,7 +7,66 @@ function pop_attr(obj, name, def=null){
 	return def;
 }
 
+function check_option_type(option, type){
+	//If option must be a many types
+	if(Array.isArray(type)){
+		for(var i in type) 
+			check_option_type(option, type[i]);
+	}
+
+	//If option must be a array
+	else if(type === 'array'){
+		if(!Array.isArray(option)) 
+			throw new Error(`Option type must be a "array"`);
+		else return;
+	}
+	//If option must be a JS type
+	else if(typeof type === 'string' && typeof option !== type)
+		throw new Error(`Option type must be a "${type}"`);
+
+	//If option must be a class object
+	else if(typeof type === 'function' && !option instanceof type)
+		throw new Error(`Option type must be a "${type.constructor.name}"`);
+}
+
+function check_option(option, pattern){
+	
+	var required = pattern.required!==undefined? pattern.required: true;
+
+	//Default value
+	if(option === null || option === undefined)
+		option = pattern.default!==undefined? pattern.default: null;
+
+	//Check is required
+	if(option === null){
+		if(required)
+			throw new Error(`Option is required`);
+		else return null;
+	}
+
+	//Check option type
+	if(pattern.type !== undefined)
+		check_option_type(option, pattern.type);
+
+	return option;
+
+}
 function check_options(options, patterns){
+	var new_options = {};
+	for(var i in patterns){
+		try{
+			var name = (patterns[i].name !== undefined)? patterns[i].name: i;
+			new_options[name] = check_option(pop_attr(options, i, null), patterns[i]);
+		}catch(e){
+			e.message = i + ' - ' + e.message.toLowerCase();
+			throw e;
+		}
+	}
+	return new_options;
+}
+
+
+/*function check_options(options, patterns){
 	var new_options = {};
 	for(var i in patterns){
 		var def = patterns[i].default!==undefined? patterns[i].default: null;
@@ -44,7 +103,7 @@ function check_options(options, patterns){
 		else new_options[i] = option;
 	}
 	return new_options;
-}
+}*/
 
 function apply_options(cls_object, obj){
 	for(var i in obj)
@@ -153,7 +212,12 @@ class MasterWidget{
 	}
 
 	init(options = {}){
-		apply_options(this, check_options(options, this.widgetOptionsPatterns()));
+		try{
+			apply_options(this, check_options(options, this.widgetOptionsPatterns()));
+		}catch(e){
+			e.message = this.constructor.name + ': ' + e.message;
+			throw e;
+		}
 		this.attrs = options;
 	}
 	initTarget(target){

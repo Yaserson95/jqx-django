@@ -110,10 +110,24 @@ class BaseMasterTree extends MasterWidget{
         var item = {
             'id': this.nodeId('node' + id),
             'value': pop_attr(item_data, 'value'),
-            'label': pop_attr(item_data, 'label')
         };
+        //Item content
+        var item_content = $('<label/>', {'class': 'master-tree-item'})
+            .text(pop_attr(item_data, 'label'));
+        
+        //If item have children
         if(item_data.has_items)
             item.items = [this.getItemLoader(this.nodeId('node' + id))];
+        
+        //If item have icon
+        if(item_data.icon !== undefined)
+            item_content.prepend(this.getItemIcon(item_data.icon));
+
+        //If item have addition css class
+        if(item_data.class_name !== undefined)
+            item_content.addClass(item_data.class_name);
+        
+        item.html = item_content[0].outerHTML;
         return item;
     }
 
@@ -127,6 +141,10 @@ class BaseMasterTree extends MasterWidget{
     getRequestData(data){
         return {...data, ...this.node_request};
     }
+    getItemIcon(name){
+        return faicon(name).addClass('master-tree-icon');
+    }
+
     loadComplete(data){
         var id = data.item_id;
         var node = (id!==null)? this.getItemById(id).element: null;
@@ -344,6 +362,13 @@ class MasterTree extends BaseMasterTree{
             'request': {'method': 'PUT'}
         };
     }
+    getItemContent(item_data, id){
+        var item_model = this.item_types[item_data.item_type];
+        item_data.class_name = `item-${item_model.className.toLowerCase()}`;
+        if(item_model.icon !== undefined)
+            item_data.icon = item_model.icon;
+        return super.getItemContent(item_data, id);
+    }
 
     openCreateDialog(item_data, node_info){
         var dialog = this.__initModelDialog(node_info, item_data.item_type, null, true);
@@ -421,14 +446,17 @@ class MasterTree extends BaseMasterTree{
 
         //If dialog not created
         if(model_info.dialog === undefined){
-            var dialog_target = $('<div/>', {'class': 'master-tree-dialog model-dialog'})
-                .appendTo(this.target);
+            var dialog_target = $('<div/>', {
+                'class': 'master-tree-dialog model-dialog item-' + model_info.className.toLowerCase()
+            })
+            .appendTo(this.target);
 
             //Create dialog
             model_info.dialog = new MasterModelFormDialog(dialog_target, {
                 'parent': this,
                 'title': action_info.label,
                 'source': this.getFormSource(item_type),
+                'icon': model_info.icon || null,
                 'formOptions':{
                     'action': action_info.action,
                     'id': model_info.id,
@@ -448,8 +476,7 @@ class MasterTree extends BaseMasterTree{
                 this.onSaveForm(e);
             });
         }else{
-            console.log(action_info);
-            model_info.dialog.setTitle(action_info.label);
+            model_info.dialog.title = action_info.label;
             model_info.dialog.form.formAction(action_info.action, action_info.request);
         }
 

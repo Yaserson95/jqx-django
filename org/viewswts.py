@@ -14,12 +14,15 @@ class OrgStructureViewSet(MasterTreeViewSet):
     search_fields = ['label']
     ordering_fields = ['item_type', 'label']
 
+    extra_item = {'icon': 'folder',}
+
     children_nodes = [
         {
             "queryset": Employee.objects.all(), 
             'label': Concat(F('first_name'), Value(' '), F('last_name'), Value(', '), F('position')),
             'value': 'pk',
             'parent': 'department',
-            'serializer': EmployeeSerializer
+            'serializer': EmployeeSerializer,
+            'extra':{'icon':'user', },
         }
     ]

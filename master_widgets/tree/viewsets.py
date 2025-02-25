@@ -18,7 +18,8 @@ CHILDREN_TYPE_PATTERNS = {
     'label': {'type': (str, Expression,), },
     'parent': {'type': str, 'default': 'parent'},
     'name': {'type': str, 'required': False},
-    'verbose_name': {'type': str, 'required': False}
+    'verbose_name': {'type': str, 'required': False},
+    'extra': {'type':dict, 'required': False},
 }
 
 class TreeItemsData:
@@ -35,6 +36,8 @@ class MasterTreeViewSet(ModelViewSet):
 
     label_field: str
     value_field: str = F('id')
+
+    extra_item: dict|None = None
 
     class Meta:
         abstract = True
@@ -162,12 +165,12 @@ class MasterTreeViewSet(ModelViewSet):
         })
     
     def get_item_types(self):
-        types = [self.get_model_info(self.get_queryset().model, 0)]
+        types = [self.get_model_info(self.get_queryset().model, 0, self.extra_item)]
         if not hasattr(self, 'children_nodes'):
             return types
         
         for i, e in enumerate(self.children_nodes):
-            node = self.get_model_info(e['queryset'].model, i+1)
+            node = self.get_model_info(e['queryset'].model, i+1, e.get('extra', None))
 
             for key in ['name', 'plural_name']:
                 if key in e: node[key] = e[key]
@@ -176,8 +179,8 @@ class MasterTreeViewSet(ModelViewSet):
 
         return types
     
-    def get_model_info(self, model, index:int=0):
-        return {
+    def get_model_info(self, model, index:int=0, extra:dict|None = None):
+        info = {
             'className': model.__name__,
             'type': index,
             'name': model._meta.verbose_name,
@@ -186,6 +189,11 @@ class MasterTreeViewSet(ModelViewSet):
             'parent': self.get_parent_field(index),
             'id': model._meta.pk.name
         }
+
+        if extra is not None:
+            extra.update(info)
+            return extra
+        return info
     
     def get_object_rules(self, item_type=0):
         if item_type == 0:

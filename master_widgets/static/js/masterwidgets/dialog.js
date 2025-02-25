@@ -6,7 +6,8 @@ class MasterDialog extends MasterWidget{
                 {'label':'Отмена', 'name':'cancel'}
             ]},
             'showButtons': {'type': 'boolean', 'name':'show_buttons', 'default': true},
-            'title': {'type': 'string'}
+            'title': {'type': 'string'},
+            'icon': {'type':'string', 'required': false}
         }});
 	}
 
@@ -34,6 +35,10 @@ class MasterDialog extends MasterWidget{
             .appendTo(this.header.base)
             .text(this.title);
 
+        if(this.icon){
+            this.header.icon = this.renderIcon(this.icon).prependTo(this.header.base);
+        }
+
         return this.header.base;
     }
     renderLayout(){
@@ -47,6 +52,9 @@ class MasterDialog extends MasterWidget{
             this.layout.base.append(this.layout.buttons);
         }
         return this.layout.base;
+    }
+    renderIcon(name){
+        return faicon(name).addClass('master-dialog-icon');
     }
     renderContent(content){
         /*content.jqxPanel({
@@ -88,19 +96,34 @@ class MasterDialog extends MasterWidget{
         this.jqx('close');
     }
 
-    setTitle(text){
+    set title(text){
+        this.__title = text;
+        if(!this.target.data('masterWidget'))
+            return;
         //Check header label
         if(this.header.label.parent().length === 0)
             this.header.label = this.header.base.find('.header-label');
 
         //Update title
-        this.title = text;
         this.header.label.text(text);
-        return this;
     }
 
-    getTitle(){
-        return this.title;
+    get title(){
+        return this.__title || null;
+    }
+
+    set icon(icon){
+        this.__icon = icon;
+        if(!this.target.data('masterWidget'))
+            return;
+
+        if(this.header.icon !== undefined)
+            this.header.icon.remove();
+        
+        this.header.icon = this.renderIcon(this.icon).prependTo(this.header.base);
+    }
+    get icon(){
+        return this.__icon || null;
     }
 
     getMaxSize(){

@@ -38,6 +38,14 @@ class WorkGroup(models.Model):
         max_length=255
     )
 
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        verbose_name = 'Рабочая группа'
+        verbose_name_plural = 'Рабочие группы'
+        ordering = ('name',)
+
 class Employee(models.Model):
     last_name = models.CharField(
         verbose_name='Фамилия', 
@@ -69,9 +77,9 @@ class Employee(models.Model):
     hire_date = models.DateField('Дата приема')
 
     groups = models.ManyToManyField(WorkGroup,
-        null=True,
         blank=True, 
-        related_name='users'
+        related_name='users',
+        verbose_name='Рабочие группы'
     )
 
     class Meta:

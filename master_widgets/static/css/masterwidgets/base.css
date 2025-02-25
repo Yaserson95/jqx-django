@@ -47,3 +47,12 @@
 .jqx-validator-error-label{
     margin-top: 2px;
 }
+
+.master-tree-icon, .master-dialog-icon{
+    display: inline-block;
+    margin-right: 3px;
+    width: 16px;
+    line-height: 16px;
+    text-align: center;
+}
+
