@@ -65,46 +65,6 @@ function check_options(options, patterns){
 	return new_options;
 }
 
-
-/*function check_options(options, patterns){
-	var new_options = {};
-	for(var i in patterns){
-		var def = patterns[i].default!==undefined? patterns[i].default: null;
-		var required = patterns[i].required!==undefined? patterns[i].required: true;
-		var option = pop_attr(options, i, def);
-		if(option === null){
-			if(required){
-				throw new Error(`Option "${i}" is required`);
-			}else{
-				
-				new_options[i] = option;
-				continue;
-			}
-		}
-
-		if(patterns[i].type !== undefined){
-			if(typeof patterns[i].type === 'string'){
-				switch(patterns[i].type){
-					case 'array':
-						if(!Array.isArray(option))
-							throw new Error(`Option "${i}" type must be a "array"`);
-						break;
-					default:
-						if(typeof option !== patterns[i].type)
-							throw new Error(`Option "${i}" type must be a "${patterns[i].type}"`);
-						break;
-				}
-			}else if(typeof patterns[i].type === 'function' && !option instanceof patterns[i].type){
-				throw new Error(`Option "${i}" type must be a "${patterns[i].type.constructor.name}"`);
-			}
-		}
-		if(patterns[i].name !== undefined)
-			new_options[patterns[i].name] = option;
-		else new_options[i] = option;
-	}
-	return new_options;
-}*/
-
 function apply_options(cls_object, obj){
 	for(var i in obj)
 		cls_object[i] = obj[i];
@@ -165,6 +125,12 @@ function getСookie(name){
 	if(name !== undefined)
 		return cookie[name];
 	return cookie;
+}
+
+function empty(value){
+	if(Array.isArray(value))
+		return value.length === 0;
+	return (value === "") || (value === null);
 }
 
 class MasterWidget{
@@ -312,11 +278,12 @@ class MasterLoadedWidget extends MasterWidget{
 }
 
 (jQuery)(function($){
+	var val_func = $.fn.val;
 	$.fn.extend({
+		'sval': val_func,
 		'inParents': function(elem){
 			var parents = $(elem).parents().toArray();
 			var elements = $(this).toArray();
-
 			parents.unshift($(elem)[0]);
 
 			for(var i in parents){
@@ -326,8 +293,18 @@ class MasterLoadedWidget extends MasterWidget{
 				}
 			}
 			return false;
+		},
+		'val':function(...args){
+			var master_widget = this.data('masterWidget');
+			if(master_widget){
+				if(typeof master_widget.value === 'function')
+					return master_widget.value(...args);
+				return null;
+			}
+			return val_func.apply(this, args);
 		}
 	});
 
+	
 	$.masterWidget = MasterWidget;
 });

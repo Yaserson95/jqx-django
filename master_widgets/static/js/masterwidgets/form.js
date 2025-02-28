@@ -55,11 +55,12 @@ class MasterForm extends MasterWidget{
                 return new Date(val).toISOString().slice(0, 10);
             case 'datetime':
                 return new Date(val).toISOString();
+            case 'custom':
+                return val;
         }
         return val.toString();
     }
 
-    
     static setValue(field_data, value){
         value =  MasterForm.parseVal(value, field_data.type);
         if(field_data.type === 'label')
@@ -148,7 +149,7 @@ class MasterForm extends MasterWidget{
     updateValidators(field_data){
         //Add required field validation rule
         if(field_data.required){
-            var required_rule = (field_data.type === 'option')? 'notnull': 'required';
+            var required_rule = (field_data.type === 'option' || field_data.type === 'custom')? 'notnull': 'required';
             this.validators.push(MasterForm.getValidator(field_data.field, {'rule': required_rule}));
         }
 
@@ -169,6 +170,7 @@ class MasterForm extends MasterWidget{
             hintRender:(message, input)=>{
                 var server_messages = this.form_errors[field_data.name];
                 var input_data = input.data('jqxWidget');
+                console.log(input_data);
                 input.addClass('jqx-validator-error-element');
                 if(typeof input_data === 'object'){
                     console.log(input_data);
@@ -200,6 +202,14 @@ class MasterForm extends MasterWidget{
                     'theme': this.attrs.theme,
                 });
                 break;
+            
+            case 'custom': 
+                $(field_data.field).masterFormField({
+                    'source': field_data.source,
+                    'type': field_data.fieldtype,
+                    'parent': this
+                });
+                break;
         }
         this.updateValidators(field_data);
         return this;
@@ -223,7 +233,7 @@ class MasterForm extends MasterWidget{
         this.target.jqxValidator({
             'hintType': "label",
             'rules': this.validators,
-        });
+        }).on('validationError', (e) => {this.onError(e)});
     }
 
     clear(){
@@ -289,6 +299,9 @@ class MasterForm extends MasterWidget{
 
     validate(){
         return this.target.jqxValidator('validate');
+    }
+    onError(e){
+        console.log(e);
     }
     __validationErrors(errors){
         if(typeof errors === 'object')

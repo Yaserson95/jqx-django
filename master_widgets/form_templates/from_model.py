@@ -30,7 +30,7 @@ def to_template_item(field: dm.Field):
         item.update(to_choices_field(field, item['required']))
 
     if isinstance(field, dm.ManyToManyField):
-        item['hidden'] = True
+        item.update(to_m2m_field(field))
 
     match field_type:
         case 'text':
@@ -48,6 +48,17 @@ def to_text_field(field: dm.CharField):
         'length': getattr(field, 'max_length', 255)
     }
     return item
+
+def to_m2m_field(field: dm.ManyToManyField)->dict:
+    opts = to_foreign_field(field, True)['options']
+
+    return {
+        'type': 'custom',
+        'fieldtype': 'checkedlist',
+        'source': opts,
+        'required': field.blank
+    }
+
 
 
 

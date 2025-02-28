@@ -89,6 +89,14 @@ class BaseMasterTree extends MasterWidget{
             data = {...data, ...this.nodes_info[node.treeID]};
         return data;
     }
+    updateItem(item, new_data){
+        var item_data = this.getItemContent(new_data);
+        this.jqx('updateItem', item, item_data);
+
+        if(item.treeID && this.nodes_info[item.treeID])
+            this.nodes_info[item.treeID] = {...this.nodes_info[item.treeID], ...new_data};
+    }
+    
     getLastItem(node = null){
         if(node === null) node = this.target[0];
         var cld = $(node).find('>ul>li:last-child');
@@ -106,18 +114,22 @@ class BaseMasterTree extends MasterWidget{
         return this.getItem(node[0]);
     }
 
-    getItemContent(item_data, id){
+    getItemContent(item_data, id = null){
         var item = {
-            'id': this.nodeId('node' + id),
             'value': pop_attr(item_data, 'value'),
         };
+
         //Item content
         var item_content = $('<label/>', {'class': 'master-tree-item'})
             .text(pop_attr(item_data, 'label'));
-        
-        //If item have children
-        if(item_data.has_items)
-            item.items = [this.getItemLoader(this.nodeId('node' + id))];
+
+        //If item have id (adding)
+        if(id !== null){
+            item.id = this.nodeId('node' + id);
+            //If item have children
+            if(item_data.has_items)
+                item.items = [this.getItemLoader(this.nodeId('node' + id))];
+        }
         
         //If item have icon
         if(item_data.icon !== undefined)
@@ -363,6 +375,7 @@ class MasterTree extends BaseMasterTree{
         };
     }
     getItemContent(item_data, id){
+        console.log(item_data);
         var item_model = this.item_types[item_data.item_type];
         item_data.class_name = `item-${item_model.className.toLowerCase()}`;
         if(item_model.icon !== undefined)
@@ -524,7 +537,7 @@ class MasterTree extends BaseMasterTree{
             this.removeItem(info.current.element);
             this.__add(item, info);
         }else{
-            this.jqx('updateItem', info.current.element, {'label': item_data.label});
+            this.updateItem(info.current.element, item_data);
         }
     }
 

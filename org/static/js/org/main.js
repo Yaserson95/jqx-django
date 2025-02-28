@@ -9,4 +9,14 @@
             'allowDrop': true
         });
     });
+
+    async function test_model(){
+        var em = new MasterModel('/products/grid/');
+        //await em.initDataAdapter();
+
+        console.log(await em.list());
+    }
+
+    test_model();
+
 });
