@@ -3,9 +3,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 from master_widgets.grid import MasterGridViewSet
+from master_widgets.api import registry
 
-from .models import Product
+from .models import Product, Category
 from .serializers import ProductSerializer
+import time
 
 
 class ProductViewSet(MasterGridViewSet):
@@ -34,3 +36,10 @@ class ProductViewSet(MasterGridViewSet):
         if name:
             queryset = queryset.filter(name__icontains=name)
         return queryset
+    
+registry.register(Product, 'product', extra={
+    'search_fields': ['name'],
+    'filterset_fields': ['name', 'price'],
+})
+
+registry.register(Category, 'category')

@@ -1,4 +1,5 @@
 from django.db import models
+from master_widgets.api import registry
 
 class Category(models.Model):
     name = models.CharField(max_length=255, verbose_name='Название')

@@ -1,4 +1,96 @@
-class MasterModel {
+class MasterDataSet{
+    constructor(manager){
+        this.manager = manager;
+        this.page = manager.page;
+        this.pageSize = manager.pageSize;
+    }
+
+    set page(page){
+        if(page < 1)
+            throw new Error('Номер страницы должен быть больше или равен 1.');
+
+        if(page !== this.__page){
+            this.__page = page;
+            this.process = null;
+            this.__data = null;
+        }
+    }
+
+    get page(){
+        return this.__page;
+    }
+
+    set pageSize(page_size){
+        if (page_size < 1) {
+            throw new Error('Размер страницы должен быть больше или равен 1.');
+        }
+
+        if(this.__page_size !== page_size){
+            this.__page_size = page_size;
+            this.process = null;
+            this.__data = null;
+            this.__count = null;
+        }
+    }
+
+    get pageSize(){
+        return this.__page_size;
+    }
+
+    async data(){
+        if(this.process)
+            return this.process;
+
+        this.process = new Promise(async (resolve, reject)=>{
+            this.in_process = true;
+            this.__resolve = resolve;
+            this.__reject = reject;
+            await this.initAdapter();
+            this.adapter.dataBind();
+        });
+        return this.process;
+    }
+
+    async count(){
+        if(!this.__count){
+            this.page = 1;
+            await this.data();
+        }
+        return this.__count;
+    }
+
+    async pagesCount(){
+        return Math.floor(await this.count() / this.pageSize);
+    }
+
+    async initAdapter(){
+        if(!this.adapter){
+            this.adapter = await this.manager.getAdapter({
+                'formatData': (request_data)=>{
+                    request_data.page = this.page;
+                    request_data.pagesize = this.pageSize;
+                    console.log(request_data);
+                    return request_data;
+                },
+
+                'beforeLoadComplete': (records)=>{
+                    this.__data = records;
+                    this.__resolve(records);
+                    return records;
+                },
+                'loadComplete':(data)=>{
+                    this.__count = data.count;
+                },
+                'loadError': (err)=>{
+                    this.__reject(null);
+                    this.manager.__adapter_options.loadError(err);
+                }
+            });
+        }
+    }
+}
+
+class MasterModel{
     /**
      * Конструктор класса MasterModel.
      * @param {string} endpoint - URL API для работы с моделью.
@@ -13,55 +105,50 @@ class MasterModel {
             },
             ...options
         };
-        this.dataAdapter = null; // Адаптер данных
         this.datafields = []; // Поля данных
         this.page = 1; // Текущая страница
         this.pageSize = 10; // Размер страницы
     }
 
-    /**
-     * Инициализация адаптера данных.
-     * @returns {Promise} - Промис, который разрешается после инициализации адаптера.
-     */
-    async initDataAdapter() {
+    async getModelOptions(){
         try {
             // Запрашиваем метаданные модели через OPTIONS
-            const optionsResponse = await $.ajax({
+            return await $.ajax({
                 url: this.endpoint,
                 method: 'OPTIONS',
                 headers: this.options.headers
             });
-
-            // Определяем datafields на основе метаданных
-            this.datafields = this._parseDataFields(optionsResponse.actions.POST);
-
-            // Создаем адаптер данных
-            this.dataAdapter = new $.jqx.dataAdapter({
-                datatype: 'json',
-                datafields: this.datafields,
-                url: this.endpoint,
-                id: 'id', // Поле ID по умолчанию
-                root: 'results',
-                autoBind: false,
-                loadError: (jqXHR, status, error) => {
-                    console.error('Ошибка при загрузке данных:', error);
-                },
-                // Добавляем параметры пагинации
-                beforeLoadComplete: (records) => {
-                    console.log(records);
-                    return {
-                        results: records.results, // Данные
-                        totalRecords: records.count // Общее количество записей
-                    };
-                }
-            });
-
-            return this.dataAdapter;
-        } catch (error) {
+        }catch (error) {
             console.error('Ошибка при инициализации адаптера данных:', error);
             throw error;
         }
     }
+
+    async initAdapterOptions(){
+        if(!this.__model_options)
+            this.__model_options = await this.getModelOptions();
+
+
+        return {
+            'datatype': 'json',
+            'datafields': this._parseDataFields(this.__model_options.actions.POST),
+            'url': this.endpoint,
+            'id': 'id', // Поле ID по умолчанию
+            'root': 'results',
+            'autoBind': false,
+            'loadError': (jqXHR, status, error) => {
+                console.error('Ошибка при загрузке данных:', error);
+            }
+        }
+    }
+
+    async getAdapter(adapfer_options = {}){
+        if(!this.__adapter_options)
+            this.__adapter_options = await this.initAdapterOptions();
+
+        return new $.jqx.dataAdapter({...this.__adapter_options, ...adapfer_options});
+    }
+
 
     /**
      * Установить текущую страницу.
@@ -72,7 +159,6 @@ class MasterModel {
             throw new Error('Номер страницы должен быть больше или равен 1.');
         }
         this.page = page;
-        this._updateAdapterUrl();
     }
 
     /**
@@ -84,18 +170,6 @@ class MasterModel {
             throw new Error('Размер страницы должен быть больше или равен 1.');
         }
         this.pageSize = pageSize;
-        this._updateAdapterUrl();
-    }
-
-    /**
-     * Обновить URL адаптера данных с учетом текущих параметров пагинации.
-     */
-    _updateAdapterUrl() {
-        if (this.dataAdapter) {
-            const url = `${this.endpoint}?page=${this.page}&page_size=${this.pageSize}`;
-            this.dataAdapter.source._source.url = url;
-            this.dataAdapter.dataBind(); // Перезагрузить данные
-        }
     }
 
     /**
@@ -124,6 +198,8 @@ class MasterModel {
         switch (fieldType) {
             case 'integer':
             case 'number':
+            case 'decimal':
+            case 'float':
                 return 'number';
             case 'boolean':
                 return 'bool';
@@ -136,52 +212,12 @@ class MasterModel {
     }
 
     /**
-     * Получить адаптер данных.
-     * @returns {object} - Адаптер данных.
-     */
-    getDataAdapter() {
-        if (!this.dataAdapter) {
-            throw new Error('Адаптер данных не инициализирован. Вызовите initDataAdapter().');
-        }
-        return this.dataAdapter;
-    }
-
-
-    async _getDA(){
-        if(!this.dataAdapter)
-            await this.initDataAdapter();
-        return this.getDataAdapter();
-    }
-
-    /**
      * Получить список объектов.
      * @param {object} params - Параметры запроса (например, фильтры, пагинация).
-     * @returns {Promise} - Промис с результатом запроса.
+     * @returns {MasterDataSet} - Промис с результатом запроса.
      */
-    async list() {
-        var adapter = await this._getDA();
-
-        const data = await new Promise((resolve, reject) => {
-            adapter.dataBind((data) => {
-                resolve(data);
-            }, (error) => {
-                reject(error);
-            });
-        });
-
-        return data;
-        /*try {
-            const response = await $.ajax({
-                url: this.endpoint,
-                method: 'GET',
-                data: { ...params, page: this.page, page_size: this.pageSize },
-                headers: this.options.headers
-            });
-            return response;
-        } catch (error) {
-            console.error('Ошибка при получении списка объектов:', error);
-            throw error;
-        }*/
+    list(){
+        return new MasterDataSet(this)
     }
 
     /**
@@ -190,17 +226,14 @@ class MasterModel {
      * @returns {Promise} - Промис с результатом запроса.
      */
     async retrieve(id) {
-        try {
-            const response = await $.ajax({
-                url: `${this.endpoint}${id}/`,
-                method: 'GET',
-                headers: this.options.headers
-            });
-            return response;
-        } catch (error) {
-            console.error('Ошибка при получении объекта:', error);
-            throw error;
-        }
+        var adapter = await this._getDA();
+        adapter._source.url = `${this.endpoint}${id}/`;
+        const data = await new Promise((resolve, reject) => {
+            //this._load_promises = {'resolve':resolve, 'reject':reject, 'details':true};
+            adapter.dataBind();
+        });
+        delete(this._load_promises);
+        return data;
     }
 
     /**

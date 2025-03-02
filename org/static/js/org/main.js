@@ -11,10 +11,13 @@
     });
 
     async function test_model(){
-        var em = new MasterModel('/products/grid/');
+        var em = new MasterModel('/models/product/');
         //await em.initDataAdapter();
+        var list = em.list();
 
-        console.log(await em.list());
+        console.log(await list.data(), await list.pagesCount(), list.pageSize);
+        console.log(await list.data(), await list.pagesCount(), list.pageSize);
+        //console.log(em.retrieve(1));
     }
 
     test_model();
