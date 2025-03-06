@@ -17,9 +17,12 @@ class MasterMenu extends MasterWidget{
     }
 
     widgetOptionsPatterns(patterns = {}){
-		return super.widgetOptionsPatterns({...patterns, ...{
+		return super.widgetOptionsPatterns({
 			'items': {'type': 'array',},
-        }});
+            'width': {'type': 'string', 'default': '200px'},
+			'height': {'type': 'string', 'default': 'auto'},
+            ...patterns,
+        });
 	}
 
     init(options){
@@ -31,8 +34,7 @@ class MasterMenu extends MasterWidget{
     }
 
     render(){
-        var list = this.renderList(this.items).appendTo(this.target);
-        this.target.addClass('master-menu');
+        var list = this.renderList(this.items).appendTo(this.jqx_target);
         this.lists.push(list[0]);
 
         this.target.on('itemclick', (e)=>{

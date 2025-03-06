@@ -3,6 +3,8 @@ class MasterDataSet{
         this.manager = manager;
         this.page = manager.page;
         this.pageSize = manager.pageSize;
+        this.filters = {};
+        this.ordering = [];
     }
 
     set page(page){
@@ -67,10 +69,13 @@ class MasterDataSet{
         if(!this.adapter){
             this.adapter = await this.manager.getAdapter({
                 'formatData': (request_data)=>{
-                    request_data.page = this.page;
-                    request_data.pagesize = this.pageSize;
-                    console.log(request_data);
-                    return request_data;
+                    return {
+                        ...request_data,
+                        ...this.filters,
+                        'page': this.page,
+                        'pagesize': this.pageSize,
+                        'ordering': this.ordering.join(',')
+                    }
                 },
 
                 'beforeLoadComplete': (records)=>{
@@ -85,12 +90,60 @@ class MasterDataSet{
                     this.__reject(null);
                     this.manager.__adapter_options.loadError(err);
                 }
-            });
+            }, true);
         }
+    }
+    /**
+     * Установить фильтры
+     * @param {object} filters - Объект фильтров { field: value }
+     */
+    filter(filters) {
+        this.filters = { ...filters };
+        this.process = null;
+        this.__data = null;
+        return this;
+    }
+
+    /**
+     * Установить сортировку
+     * @param {string[]} ordering - Массив полей сортировки ['field', '-field']
+     */
+    order_by(ordering) {
+        this.ordering = [...ordering];
+        this.process = null;
+        this.__data = null;
+        return this;
     }
 }
 
 class MasterModel{
+    static set(models){
+        this.__models = models
+    }
+
+    static get(name){
+        var model_info = this.models[name];
+        if(!this.base_url)
+            throw new Error('Models base url is not defined');
+
+        if(model_info === undefined) return null;
+        if(!model_info.manager)
+            model_info.manager = new MasterModel(`${this.base_url}${name}/`, model_info);
+        return model_info.manager;
+    }
+
+    static getByName(class_name){
+        for(var i in this.models){
+            if(this.models[i].class_name === class_name)
+                return this.get(i);
+        }
+        return null;
+    }
+
+    static get models(){
+        return this.__models || {};
+    }
+
     /**
      * Конструктор класса MasterModel.
      * @param {string} endpoint - URL API для работы с моделью.
@@ -103,6 +156,7 @@ class MasterModel{
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getСookie('csrftoken') // Получаем CSRF-токен из куки
             },
+            'id': 'id',
             ...options
         };
         this.datafields = []; // Поля данных
@@ -110,45 +164,93 @@ class MasterModel{
         this.pageSize = 10; // Размер страницы
     }
 
-    async getModelOptions(){
-        try {
-            // Запрашиваем метаданные модели через OPTIONS
-            return await $.ajax({
-                url: this.endpoint,
-                method: 'OPTIONS',
-                headers: this.options.headers
-            });
-        }catch (error) {
-            console.error('Ошибка при инициализации адаптера данных:', error);
-            throw error;
-        }
+    /**
+     * Запрашивает методанные модели через OPTIONS
+     * @returns {Promise}
+     */
+    initModelOptions(){
+        const prm = new Promise((resolve, reject)=>{
+            if(this.__model_options){
+                resolve(this.__model_options);
+            }else{
+                $.ajax({
+                    'url': this.endpoint,
+                    'method': 'OPTIONS',
+                    'headers': this.options.headers,
+                    'success': (options)=>{resolve(options)},
+                    'error': (e)=>{reject(e)}
+                });
+            }
+        });
+        prm.then((options)=>{
+            if(!this.__model_options)
+                this.__model_options = options.actions.POST;
+        }).catch((e)=>{
+            console.error('Ошибка при инициализации модели данных:', e);
+            throw e;
+        })
+        return prm;
     }
 
-    async initAdapterOptions(){
-        if(!this.__model_options)
-            this.__model_options = await this.getModelOptions();
-
-
+    /**
+     * Возвращает параметры модели данных
+     * @returns {object}
+     */
+    getAdapterOptions(options){
         return {
             'datatype': 'json',
-            'datafields': this._parseDataFields(this.__model_options.actions.POST),
+            'datafields': this._parseDataFields(options),
             'url': this.endpoint,
-            'id': 'id', // Поле ID по умолчанию
+            'id': this.options.id,
             'root': 'results',
             'autoBind': false,
             'loadError': (jqXHR, status, error) => {
                 console.error('Ошибка при загрузке данных:', error);
+            },
+            'beforeSend': (xhr) => {
+                for(var i in this.options.headers)
+                    xhr.setRequestHeader(i, this.options.headers[i]);
             }
         }
     }
 
-    async getAdapter(adapfer_options = {}){
-        if(!this.__adapter_options)
-            this.__adapter_options = await this.initAdapterOptions();
+    /**
+     * Возвращает адаптер данных или промис, если указано свойство autoinit=true
+     * @param {object} [adapter_options={}] дополнительные (переопределённые) параметры адаптера
+     * @param {boolean} [autoinit=false] флаг автоматической инициализации параметров модели
+     * @returns {Promise|object}
+     */
+    getAdapter(adapter_options = {}, autoinit = false){
+        //Если переметры адаптера уже проинициализированы
+        if(this.__adapter_options)
+            return new $.jqx.dataAdapter({...this.__adapter_options, ...adapter_options});
 
-        return new $.jqx.dataAdapter({...this.__adapter_options, ...adapfer_options});
+        //Если не указана автоматическая инициализация параметров
+        if(!autoinit){
+            const options = this.getModelOptions();
+            if(options === null)
+                throw new Error('Модель данных не инициализирована');
+            
+            this.__adapter_options = this.getAdapterOptions(options);
+            return this.getAdapter(adapter_options);
+        }
+
+        //В остальных случаях модель будет загружаться автоматически и возвращаться промис
+        return (async()=>{
+            await this.initModelOptions();
+            return this.getAdapter(adapter_options);
+        })();
     }
 
+    /**
+     * Возвращает параметры модели данных
+     * @returns {object|null}
+     */
+    getModelOptions(){
+        if(!this.__model_options)
+            return null;
+        return this.__model_options;
+    }
 
     /**
      * Установить текущую страницу.
@@ -217,7 +319,7 @@ class MasterModel{
      * @returns {MasterDataSet} - Промис с результатом запроса.
      */
     list(){
-        return new MasterDataSet(this)
+        return new MasterDataSet(this);
     }
 
     /**
@@ -226,14 +328,21 @@ class MasterModel{
      * @returns {Promise} - Промис с результатом запроса.
      */
     async retrieve(id) {
-        var adapter = await this._getDA();
-        adapter._source.url = `${this.endpoint}${id}/`;
-        const data = await new Promise((resolve, reject) => {
-            //this._load_promises = {'resolve':resolve, 'reject':reject, 'details':true};
+        const data = await new Promise(async (resolve, reject) => {
+            const adapter = await this.getAdapter({
+                'url': `${this.endpoint}${id}/`,
+                'beforeLoadComplete': (records)=>{
+                    resolve(records);
+                },
+                'loadError': (err)=>{
+                    reject(null);
+                }
+            }, true);
+            console.log(adapter);
             adapter.dataBind();
         });
-        delete(this._load_promises);
-        return data;
+        if(data.length > 0) return data[0];
+        return null;
     }
 
     /**
@@ -295,4 +404,24 @@ class MasterModel{
             throw error;
         }
     }
+
+    get verbose_name(){
+        return this.options.verbose_name || null;
+    }
+
+    get verbose_name_plural(){
+        return this.options.verbose_name_plural || null;
+    }
+
+    get class_name(){
+        return this.options.class_name || null;
+    }
+
+    get id(){
+        return this.options.id || 'id';
+    }
 }
+
+(jQuery)(function($){
+    $.masterModel = MasterModel;
+});

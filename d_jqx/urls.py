@@ -25,7 +25,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('products/', include('products.urls')),
     path('org/', include('org.urls')),
-    path('models/', include(registry.urls)),
+    path('models/', include('master_widgets.urls')),
     path('', index_view, name='index'),
 
 ] + debug_toolbar_urls()

@@ -133,8 +133,24 @@ function empty(value){
 	return (value === "") || (value === null);
 }
 
+function camelToKebab(str) {
+    return str
+        .replace(/([a-z])([A-Z])/g, '$1-$2') // Добавляем дефис между строчной и заглавной буквой
+        .replace(/([A-Z])([A-Z][a-z])/g, '$1-$2') // Обрабатываем аббревиатуры (например, XML → X-M-L)
+        .toLowerCase(); // Преобразуем все в нижний регистр
+}
+
+/**
+ * Base widget class providing common functionality for UI components
+ */
 class MasterWidget{
+	/** @static @type {string} Base path for theme stylesheets */
 	static themes_base = '/static/css/jqx/';
+	/**
+     * Retrieves list of loaded theme stylesheets from the document head
+     * @static
+     * @returns {string[]} Array of loaded theme names
+     */
 	static getLoadedStyles(){
 		var styles = [];
 		$(document.head).find('link[rel="stylesheet"]').each(function(i,e){
@@ -142,10 +158,14 @@ class MasterWidget{
 			if(href.startsWith(MasterWidget.themes_base))
 				styles.push(href.substring(MasterWidget.themes_base.length));
 		});
-
 		return styles;
 	}
-
+	/**
+     * Loads specified theme stylesheet if not already loaded
+     * @static
+     * @param {string} theme - Theme name to load
+     * @returns {jQuery|undefined} Link element for loaded theme or undefined if already present
+     */
 	static openTheme(theme){
 		var themes = this.getLoadedStyles();
 		if(themes.indexOf(theme) !== -1)
@@ -156,27 +176,52 @@ class MasterWidget{
 		$(document.head).append(style);
 		return style;
 	}
-
+	/**
+     * Sets current theme for all widgets
+     * @static
+     * @param {string} theme - Theme name to set
+     */
 	static set theme(theme){
 		this.openTheme(theme);
 		this.__theme = theme;
 	}
-
+	/**
+     * Gets currently active theme
+     * @static
+     * @returns {string} Current theme name
+     */
 	static get theme(){
 		return this.__theme || 'base';
 	}
-
+	/**
+     * Initializes widget instance
+     * @param {jQuery} target - Container element for the widget
+     * @param {object} options - Configuration options
+     */
 	constructor(target, options){
 		this.target = this.initTarget($(target));
 		this.init(options);
-		this.render();
+		if(this.autorender)	this.render();
 	}
+	/**
+     * Defines option validation patterns including base patterns
+     * @param {Object} [patterns={}] - Additional patterns to merge
+     * @returns {Object} Merged option patterns
+     */
 	widgetOptionsPatterns(patterns = {}){
-		return {...patterns, ...{
-			'parent':{'required': false, 'type': MasterWidget},
-		}};
+		return {
+			'parent':{'type': MasterWidget, 'required': false},
+			'autorender':{'type': 'boolean', 'default': true},
+			'width': {'type': 'string', 'default': '100%'},
+			'height': {'type': 'string', 'default': '400px'},
+			...patterns
+		};
 	}
-
+	/**
+     * Initializes widget with provided options
+     * @param {Object} [options={}] - Configuration options
+     * @throws {Error} When option validation fails
+     */
 	init(options = {}){
 		try{
 			apply_options(this, check_options(options, this.widgetOptionsPatterns()));
@@ -184,49 +229,206 @@ class MasterWidget{
 			e.message = this.constructor.name + ': ' + e.message;
 			throw e;
 		}
-		this.attrs = options;
-	}
-	initTarget(target){
-		return target;
-	}
 
-	render(){
-		if(this.attrs.theme === undefined){
+		if(options.theme === undefined){
 			if(this.parent !== null)
-				this.attrs.theme = this.parent.theme;
-			else this.attrs.theme = MasterWidget.theme;
+				options.theme = this.parent.theme;
+			else options.theme = MasterWidget.theme;
 		}
 
+		if(options.theme !== 'base'){
+			this.target.addClass('jqx-content-' + options.theme);
+		}
+
+		if(this.__jqx_widget){
+			this.target.css({
+				'width': this.width,
+				'height': this.height
+			});
+			options.width = '100%';
+			options.height = '100%';
+		}else{
+			options.width = this.width;
+			options.height = this.height;
+		}
+
+		this.__loader = null;
+		this.attrs = options;
+	}
+	/**
+     * Prepares target element for widget initialization
+     * @param {jQuery} target - Container element
+     * @param {boolean} [create_jqx=true] - Whether to create JQX container
+     * @returns {jQuery} Prepared target element
+     * @throws {Error} If target element is invalid
+     */
+	initTarget(target, create_jqx = true){
+		if(target.length === 0)
+			throw new Error('Target element is not correct');
+
+		target.addClass('master-widget ' + camelToKebab(this.constructor.name));
+
+		//if this.theme
+		
+		if(create_jqx && !this.__jqx_widget)
+			this.__jqx_widget = this.initJQXTarget(target);
+
+		return target;
+	}
+	/**
+	 * Creates JQX-specific container element
+	 * @param {jQuery} target - Parent element
+	 * @returns {jQuery} Created JQX container
+	 */
+	initJQXTarget(target){
+		return $('<div/>', {'class':'master-jqx-widget'}).appendTo(target);
+	}
+	/**
+     * Renders widget and applies theme settings
+     */
+	render(){
 		this.jqx(this.attrs);
 		this.target.data('masterWidget', this);
 	}
-
+	/**
+     * Proxy method for JQX widget operations
+     * @param {...any} args - Arguments to pass to JQX widget
+     * @returns {any|undefined} Result of JQX operation or undefined
+     */
 	jqx(...args){
 		if(typeof this.jqx_type !== 'string')
 			return;
-		return this.target[this.jqx_type](...args);
+		return this.jqx_target[this.jqx_type](...args);
 	}
+	/**
+     * Gets widget's target element ID
+     * @returns {string|undefined} Element ID or undefined
+     */
 	id(){
 		return this.target.attr('id');
 	}
+	/**
+	 * Triggers event on target element
+	 * @param {...any} args - Event arguments
+	 * @returns {MasterWidget} Instance for chaining
+	 */
 	trigger(...args){
-		return this.target.trigger(...args);
+		this.target.trigger(...args);
+		return this;
 	}
+	/**
+	 * Attaches event handler to target
+	 * @param {...any} args - Event parameters
+	 * @returns {MasterWidget} Instance for chaining
+	 */
 	on(...args){
-		return this.target.on(...args);
+		this.target.on(...args);
+		return this;
 	}
-
+	/**
+     * Manages loading indicator display
+     * @param {boolean} [show=true] - Whether to show loader
+     * @returns {MasterWidget} Instance for chaining
+     */
+	showLoader(show = true){
+		if(show){
+			if(!this.__loader)
+				this.__loader = $('<div class="master-widget-loader"><div class="loader"></div></div>')
+					.appendTo(this.target);
+			this.__loader.show();
+		}else{
+			if(this.__loader){
+				this.__loader.remove();
+				this.__loader = null;
+			}
+		}
+		return this;
+	}
+	/**
+     * Wraps promise with loading indicator
+     * @param {Promise} prm - Promise to track
+     * @returns {Promise} Original promise with loader handling
+     */
+	loader(prm){
+		this.showLoader();
+		prm.finally(()=>{
+			this.showLoader(false);
+		});
+		return prm;
+	}
+	/**
+     * Gets current widget theme
+     * @type {string}
+     */
 	get theme(){
 		return this.attrs.theme;
 	}
-
+	/**
+     * Updates widget theme and refreshes display
+     * @type {string}
+     */
 	set theme(theme){
 		this.openTheme(theme);
 		this.attrs.theme = theme;
 		if(this.target.data('masterWidget'))
 			this.jqx({'theme': theme });
 	}
+	 /**
+     * Gets JQX-specific target element
+     * @type {jQuery}
+     */
+	get jqx_target(){
+		return this.__jqx_widget || this.target;
+	}
 };
+
+class MasterModelWidget{
+	/**
+     * Merges model-related option patterns
+     * @override
+     * @returns {Object} Extended option patterns
+     */
+	widgetOptionsPatterns(){
+		return super.widgetOptionsPatterns({
+			'model': {'type': ['string', $.masterModel]},
+		});
+	}
+
+	/**
+     * Retrieves associated model instance
+     * @returns {MasterModel} Model instance
+     * @throws {Error} If model not found
+     */
+	getModel(){
+		if(this.model instanceof $.masterModel)
+			return this.model;
+
+		var model = $.masterModel.get(this.model);
+		if(model === null)
+			throw new Error(`Model '${this.model}' is not defined`);
+
+		this.model = model;
+		return model;
+	}
+	setModelOptions(options){
+
+	}
+
+	render(){
+		var model = this.getModel();
+		var options = model.getModelOptions();
+		if(options === null){
+			this.loader(model.initAdapterOptions())
+				.then((options)=>{
+					this.setModelOptions(options);
+					this.render();
+				});
+			return;
+		}
+		this.setModelOptions(options);
+		this.render();
+	}
+}
 
 class MasterLoadedWidget extends MasterWidget{
 	widgetOptionsPatterns(){
@@ -234,9 +436,12 @@ class MasterLoadedWidget extends MasterWidget{
 			'url': {'type': 'string'},
 			'request': {'type': 'object', 'default':{'method': 'GET'}},
 			'widgetClass': {'type': 'function', 'name':'widget_class'},
-			'autoload': {'type': 'boolean', 'default': true},
 			'config': {'type': 'object', 'default': {}}
 		});
+	}
+
+	initTarget(target, jqx=false){
+		return super.initTarget(target, false);
 	}
 
 	init(opts){
@@ -246,35 +451,38 @@ class MasterLoadedWidget extends MasterWidget{
 		super.init(opts);
 	}
 
-	render(){		
-		this.request.success = (data)=>{
-			this.showSpinner(false);
-			this.in_process = false;
+	render(){
+		this.load().then((data)=>{
 			this.is_load = true;
 			this.widget = this.afterLoading(data);
-		}
-
-		this.request.error = (err)=>{
-			this.in_process = false;
+		})
+		.catch((e)=>{
 			this.has_errors = true;
-			console.error(err);
-			this.showSpinner(false);
-		}
-		if(this.autoload) this.load();
-		super.render();
+			console.error(e);
+		})
+		.finally(()=>{
+			this.in_process = false;
+		});
 	}
 
 	load(){
-		this.showSpinner(true);
+		if(this.is_load) return;
 		this.in_process = true;
-		$.ajax(this.url, this.request);
+		const prm = new Promise((resolve, reject)=>{
+			const requestOpts = {
+				...this.request,
+				'success':(data)=>{resolve(data)},
+				'error':(e)=>{reject(e)}
+			}
+			$.ajax(this.url, requestOpts);
+		});
+		return this.loader(prm);
 	}
 
 	afterLoading(config){
 		this.config.parent = this.parent;
 		return new this.widget_class(this.target, {...config, ...this.config});
 	}
-	showSpinner(show=true){}
 }
 
 (jQuery)(function($){

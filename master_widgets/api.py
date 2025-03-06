@@ -1,6 +1,7 @@
-from rest_framework import viewsets, serializers, routers
-from  django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
+from django.db.models import Field
+from rest_framework import serializers, routers
+from .helpers import get_field_filters
+from .viewsets import MasterModelViewSet
 
 class APIRegistry:
     def __init__(self):
@@ -30,6 +31,29 @@ class APIRegistry:
         # Add the model to the registry
         self._registered_models[model] = name
 
+    def get_models_info(self) -> dict:
+        models_info = {}
+        for model in self._registered_models:
+            models_info[self._registered_models[model]] = {
+                'id': model._meta.pk.name,
+                'class_name': model.__name__,
+                'verbose_name': model._meta.verbose_name,
+                'verbose_name_plural': model._meta.verbose_name_plural,
+                'relations': self._get_relations_info(model._meta.get_fields())
+            }
+        return models_info
+    
+    def _get_relations_info(self, relations:list[Field])->dict:
+        rel_info = {}
+        for rel in relations:
+            if rel.is_relation:
+                rel_info[rel.name] = {
+                    'type': rel.__class__.__name__,
+                    'related_object': rel.related_model.__name__,
+                    'related_fields': getattr(rel, 'to_fields', None)
+                }
+        return rel_info
+
     def _create_model_serializer(self, model):
         """Creates a ModelSerializer for the given model."""
         # Define the Meta class for the serializer
@@ -45,18 +69,27 @@ class APIRegistry:
         options = {
             'queryset': model.objects.all(),
             'serializer_class': serializer_class,
-            'filter_backends': [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter], 
         }
         if extra is not None:
             extra.update(options)
             options = extra
         """Creates a ModelViewSet for the given model."""
         # Dynamically create the ViewSet class
+        if 'filterset_fields' not in options:
+            options['filterset_fields'] = self._get_fields_filters(model)
+
         return type(
             f'{model.__name__}ViewSet',
-            (viewsets.ModelViewSet,),
+            (MasterModelViewSet,),
             options
         )
+
+    def _get_fields_filters(self, model)->dict:
+        return {
+            field.name: get_field_filters(field) 
+            for field in model._meta.fields 
+            if not (field.primary_key or field.many_to_many or field.one_to_many)
+        }
 
     @property
     def urls(self):

@@ -38,8 +38,7 @@ class ProductViewSet(MasterGridViewSet):
         return queryset
     
 registry.register(Product, 'product', extra={
-    'search_fields': ['name'],
-    'filterset_fields': ['name', 'price'],
+    'search_fields': ['name']
 })
 
 registry.register(Category, 'category')

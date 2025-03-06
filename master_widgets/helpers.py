@@ -1,8 +1,13 @@
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import F
+from django.db import models
 from django.forms import ValidationError
 from rest_framework.serializers import BaseSerializer
 from .exceptions import ValidateOptionsException
+
+FIELD_FILTERS = [
+    ((models.IntegerField, models.DecimalField, models.DateTimeField, models.DateField), ["gt", "gte", "lt", "lte"],),
+    ((models.CharField, models.TextField, models.SlugField, models.UUIDField), ["icontains", "istartswith", "iendswith", "regex", "iregex"],),
+]
 
 def model_field_exists(cls, field):
     try:
@@ -14,7 +19,7 @@ def model_field_exists(cls, field):
 
 def expr(field):
     if type(field) ==str:
-        return F(field)
+        return models.F(field)
     return field
 
 def validate_options_type(option, name:str, required_type):
@@ -48,3 +53,11 @@ def in_children(instance, value, field:str = 'parent')->bool:
             return True
         
     return False
+
+def get_field_filters(field: models.Field)->list:
+    field_filters = ['exact',]
+    for field_opt in FIELD_FILTERS:
+        if(isinstance(field, field_opt[0])):
+            return field_filters + field_opt[1]
+    
+    return field_filters

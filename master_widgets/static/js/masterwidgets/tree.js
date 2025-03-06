@@ -57,7 +57,7 @@ class BaseMasterTree extends MasterWidget{
         this.attrs.dragStart = (...args)=>{return this.dragStart(...args)};
         this.attrs.dragEnd = (...args)=>{return this.dragEnd(...args)};
         super.render();
-        this.target.on({
+        this.jqx_target.on({
             'expand': (...args)=>{this.onExpand(...args)},
             'collapse': (...args)=>{this.onCollapse(...args)},
         });
@@ -70,7 +70,7 @@ class BaseMasterTree extends MasterWidget{
         //Add item to tree
         this.jqx('addTo', item, node);
         //Get item element
-        var element = this.target.find('#'+item.id)[0];
+        var element = this.jqx_target.find('#'+item.id)[0];
         element.treeID = this.__tree_id;
         item_data.element = element;
         //Save additional item data
