@@ -64,7 +64,6 @@ function check_options(options, patterns){
 	}
 	return new_options;
 }
-
 function apply_options(cls_object, obj){
 	for(var i in obj)
 		cls_object[i] = obj[i];
@@ -140,6 +139,7 @@ function camelToKebab(str) {
         .toLowerCase(); // Преобразуем все в нижний регистр
 }
 
+
 /**
  * Base widget class providing common functionality for UI components
  */
@@ -212,8 +212,8 @@ class MasterWidget{
 		return {
 			'parent':{'type': MasterWidget, 'required': false},
 			'autorender':{'type': 'boolean', 'default': true},
-			'width': {'type': 'string', 'default': '100%'},
-			'height': {'type': 'string', 'default': '400px'},
+			'width': {'type': ['string', 'number'], 'default': '100%'},
+			'height': {'type': ['string', 'number'], 'default': '400px'},
 			...patterns
 		};
 	}
@@ -223,6 +223,8 @@ class MasterWidget{
      * @throws {Error} When option validation fails
      */
 	init(options = {}){
+		this.attrs = {};
+
 		try{
 			apply_options(this, check_options(options, this.widgetOptionsPatterns()));
 		}catch(e){
@@ -253,7 +255,7 @@ class MasterWidget{
 		}
 
 		this.__loader = null;
-		this.attrs = options;
+		this.attrs = {...this.attrs, ...options};
 	}
 	/**
      * Prepares target element for widget initialization

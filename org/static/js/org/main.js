@@ -24,5 +24,7 @@
         console.log(await list.filter({'category': 2}).data());
     }
 
+    var i =5;
+
     test_model();
 });
