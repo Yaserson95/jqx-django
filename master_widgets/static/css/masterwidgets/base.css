@@ -92,21 +92,52 @@
     display: inline-block;
     box-sizing: border-box;
     animation: rotation 1s linear infinite;
-  }
+}
 
-  .jqx-content-material-purple .loader{
+.jqx-content-material-purple .loader{
     border-color: #6200EE transparent;
-  }
-  
-  @keyframes rotation {
+}
+
+@keyframes rotation {
     0% {
-      transform: rotate(0deg);
+        transform: rotate(0deg);
     }
     100% {
-      transform: rotate(360deg);
+        transform: rotate(360deg);
     }
-  } 
-    
+} 
 
 
-  
+.master-model-list{
+    display: flex;
+    flex-direction: column; 
+ }
+
+
+.master-paginator {
+    min-height: 40px;
+    height: 40px;
+    border: none;
+    display: flex;
+}
+
+.master-toolbar{
+    display: flex;
+    flex-direction: row;
+}
+
+.master-toolbar .tool{
+    float: inherit;
+}
+
+.master-toolbar .tool input[type='text']{
+    margin: 0px;
+}
+
+.master-toolbar input.jqx-toolbar-tool{
+    margin-bottom: 0px !important;
+}
+
+.master-toolbar .jqx-input{
+    margin-right: 6px;
+}

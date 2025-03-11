@@ -19,17 +19,17 @@ class MasterMenu extends MasterWidget{
     widgetOptionsPatterns(patterns = {}){
 		return super.widgetOptionsPatterns({
 			'items': {'type': 'array',},
-            'width': {'type': 'string', 'default': '200px'},
-			'height': {'type': 'string', 'default': 'auto'},
             ...patterns,
         });
 	}
 
-    init(options){
+    init(options = {}){
         this.jqx_type = 'jqxMenu';
         this.lists = [];
         if(options.source !== undefined)
             delete(options.source);
+
+        defaults(options, {'width': 200});
         super.init(options);
     }
 

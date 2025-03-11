@@ -1,3 +1,4 @@
+'use strict';
 function pop_attr(obj, name, def=null){
 	if(obj[name] !== undefined){
 		var val = obj[name];
@@ -10,8 +11,13 @@ function pop_attr(obj, name, def=null){
 function check_option_type(option, type){
 	//If option must be a many types
 	if(Array.isArray(type)){
-		for(var i in type) 
-			check_option_type(option, type[i]);
+		for(var i in type){
+			try{
+				check_option_type(option, type[i]);
+				return;
+			}catch(e){}
+		}
+		throw new Error(`Option types must be a ${type.join(', ')}`);
 	}
 
 	//If option must be a array
@@ -214,6 +220,7 @@ class MasterWidget{
 			'autorender':{'type': 'boolean', 'default': true},
 			'width': {'type': ['string', 'number'], 'default': '100%'},
 			'height': {'type': ['string', 'number'], 'default': '400px'},
+			'theme': {'type': 'string', 'default': MasterWidget.theme},
 			...patterns
 		};
 	}
@@ -232,31 +239,10 @@ class MasterWidget{
 			throw e;
 		}
 
-		if(options.theme === undefined){
-			if(this.parent !== null)
-				options.theme = this.parent.theme;
-			else options.theme = MasterWidget.theme;
-		}
-
-		if(options.theme !== 'base'){
-			this.target.addClass('jqx-content-' + options.theme);
-		}
-
-		if(this.__jqx_widget){
-			this.target.css({
-				'width': this.width,
-				'height': this.height
-			});
-			options.width = '100%';
-			options.height = '100%';
-		}else{
-			options.width = this.width;
-			options.height = this.height;
-		}
-
 		this.__loader = null;
 		this.attrs = {...this.attrs, ...options};
 	}
+
 	/**
      * Prepares target element for widget initialization
      * @param {jQuery} target - Container element
@@ -289,7 +275,12 @@ class MasterWidget{
      * Renders widget and applies theme settings
      */
 	render(){
-		this.jqx(this.attrs);
+		this.jqx({
+			...this.attrs,
+			'width': this.jqx_width,
+			'height': this.jqx_height,
+			'theme': this.theme
+		});
 		this.target.data('masterWidget', this);
 	}
 	/**
@@ -363,15 +354,19 @@ class MasterWidget{
      * @type {string}
      */
 	get theme(){
-		return this.attrs.theme;
+		return this.__theme;
 	}
 	/**
      * Updates widget theme and refreshes display
      * @type {string}
      */
 	set theme(theme){
-		this.openTheme(theme);
-		this.attrs.theme = theme;
+		MasterWidget.openTheme(theme);
+		this.__theme = theme;
+
+		if(!this.__jqx_widget)
+			this.target.addClass('jqx-content-' + theme);
+
 		if(this.target.data('masterWidget'))
 			this.jqx({'theme': theme });
 	}
@@ -382,55 +377,44 @@ class MasterWidget{
 	get jqx_target(){
 		return this.__jqx_widget || this.target;
 	}
-};
 
-class MasterModelWidget{
-	/**
-     * Merges model-related option patterns
-     * @override
-     * @returns {Object} Extended option patterns
-     */
-	widgetOptionsPatterns(){
-		return super.widgetOptionsPatterns({
-			'model': {'type': ['string', $.masterModel]},
-		});
+	get jqx_width(){
+		return this.__jqx_widget? '100%': this.width;
 	}
 
-	/**
-     * Retrieves associated model instance
-     * @returns {MasterModel} Model instance
-     * @throws {Error} If model not found
-     */
-	getModel(){
-		if(this.model instanceof $.masterModel)
-			return this.model;
-
-		var model = $.masterModel.get(this.model);
-		if(model === null)
-			throw new Error(`Model '${this.model}' is not defined`);
-
-		this.model = model;
-		return model;
-	}
-	setModelOptions(options){
-
+	get jqx_height(){
+		return this.__jqx_widget? '100%': this.height;
 	}
 
-	render(){
-		var model = this.getModel();
-		var options = model.getModelOptions();
-		if(options === null){
-			this.loader(model.initAdapterOptions())
-				.then((options)=>{
-					this.setModelOptions(options);
-					this.render();
-				});
-			return;
+	set width(width){
+		this.__setSize('width', width);
+	}
+	
+	get width(){
+		return this.__width;
+	}
+
+	set height(height){
+		this.__setSize('height', height);
+	}
+
+	get height(){
+		return this.__heights;
+	}
+
+	__setSize(dem, size){
+		const sz = `__${dem}`;
+		this[sz] = (typeof size === 'number')? `${size}px`: size;
+		if(this.__jqx_widget)
+			this.__jqx_widget.css(dem, this[sz]);
+
+		if(this.target.data('masterWidget')){
+			var upd = {};
+			upd[dem] = this[sz];
+			this.jqx(upd);
 		}
-		this.setModelOptions(options);
-		this.render();
 	}
-}
+};
 
 class MasterLoadedWidget extends MasterWidget{
 	widgetOptionsPatterns(){
@@ -484,6 +468,64 @@ class MasterLoadedWidget extends MasterWidget{
 	afterLoading(config){
 		this.config.parent = this.parent;
 		return new this.widget_class(this.target, {...config, ...this.config});
+	}
+}
+
+//Mixins
+class MasterModelLoader{
+	constructor(widget){
+		this.widget = widget;
+		widget.widgetOptionsPatterns = this.patterns(widget.widgetOptionsPatterns);
+		widget.render = this.render(widget.render);
+	}
+
+	/**
+     * Merges model-related option patterns
+     * @override
+     * @returns {Object} Extended option patterns
+     */
+	patterns(original){
+		return (patterns = {})=>{
+			return original.apply(this.widget, [{
+				...patterns,
+				'model': {'type': ['string', $.masterModel]},
+			}]);
+		};
+	}
+
+	render(original){
+		return ()=>{
+			var model = this.widget.model;
+			if(!$.masterModel)
+				throw new Error('Module "models.js" is not defined');
+
+			if(typeof model === 'string'){
+				this.widget.model = $.masterModel.get(this.widget.model);
+				if(!this.widget.model)
+					throw new Error(`Model "${model}" is not defined`);
+			}
+
+			this.widget.loader(this.widget.model.initModelOptions()).then(()=>{
+				original.apply(this.widget, []);
+			});
+		}
+	}
+
+	/**
+     * Retrieves associated model instance
+     * @returns {MasterModel} Model instance
+     * @throws {Error} If model not found
+     */
+	getModel(){
+		if(this.model instanceof $.masterModel)
+			return this.model;
+
+		var model = $.masterModel.get(this.model);
+		if(model === null)
+			throw new Error(`Model '${this.model}' is not defined`);
+
+		this.model = model;
+		return model;
 	}
 }
 

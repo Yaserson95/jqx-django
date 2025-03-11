@@ -242,6 +242,21 @@ class MasterModel{
         })();
     }
 
+    getChoicesAdapter(options={}){
+        return new $.jqx.dataAdapter({
+            ...options,
+            'url': `${this.endpoint}choices/`,
+            'datatype': 'json',
+            'id': 'value',
+            'root': 'results',
+            'autoBind': false,
+            'datafields': [
+                {'name': 'label', 'type': 'string'},
+                {'name': 'value', }
+            ]
+        });
+    }
+
     /**
      * Возвращает параметры модели данных
      * @returns {object|null}
@@ -338,7 +353,6 @@ class MasterModel{
                     reject(null);
                 }
             }, true);
-            console.log(adapter);
             adapter.dataBind();
         });
         if(data.length > 0) return data[0];

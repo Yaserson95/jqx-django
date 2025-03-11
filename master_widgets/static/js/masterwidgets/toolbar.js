@@ -2,7 +2,7 @@ TOOL_PATTERNS = {
     'icon': {'type': 'string', 'required': false}, 
     'type': {'type': 'string', 'default': 'button'}, 
     'separator': {'type': 'boolean', 'default': true}, 
-    'label': {'type': 'string'},
+    'label': {'type': 'string', 'default': ''},
     'name': {'type': 'string'}
 };
 
@@ -16,6 +16,10 @@ class MasterToolbar extends MasterWidget{
         this.tools = {};
         this.jqx_type = 'jqxToolBar';
         super.init(defaults(attrs, {'height': 'auto'}));
+    }
+
+    initTarget(target, create_jqx=false){
+        return super.initTarget(target, create_jqx);
     }
 
     render(){
@@ -38,6 +42,7 @@ class MasterToolbar extends MasterWidget{
     renderTool(type, index, tool, menuToolIninitialization){
         var options = Object.assign({}, this.buttons[index]);
         var item = check_options(options, TOOL_PATTERNS);
+        tool.addClass('tool');
 
         switch(type){
             case 'button':
@@ -53,7 +58,7 @@ class MasterToolbar extends MasterWidget{
                 tool.jqxComboBox(options);
                 break;
             case 'input':
-                tool.jqxInput(options);
+                MasterToolbar.initInput(tool, options);
                 break;
         }
 
@@ -100,5 +105,11 @@ class MasterToolbar extends MasterWidget{
         }
         tool.attr('type', 'action');
         return tool;
+    }
+
+    static initInput(input, options){
+        input.jqxInput(options);
+        input.css('margin-right', '6px');
+        return input;
     }
 };
