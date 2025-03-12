@@ -349,6 +349,30 @@ class MasterWidget{
 		});
 		return prm;
 	}
+
+	/**
+	 * Set visibility for widget
+	 * @type {boolean}
+	 */
+	set hidden(hidden){
+		//To bool
+		hidden = hidden === true;
+
+		//Hide or show widget
+		if(hidden) this.target.hide();
+		else this.target.show();
+
+		this.__hidden = hidden;
+	}
+
+	/**
+	 * Gets widget's visibility state
+	 * @type {boolean}
+	 */
+	get hidden(){
+		return this.__hidden;
+	}
+
 	/**
      * Gets current widget theme
      * @type {string}
@@ -399,7 +423,7 @@ class MasterWidget{
 	}
 
 	get height(){
-		return this.__heights;
+		return this.__height;
 	}
 
 	__setSize(dem, size){

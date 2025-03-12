@@ -3,10 +3,20 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from rest_framework.decorators import action
 from .serializers import ChoiseItemSerializer
+from .pagination import MasterPagination
 
 class MasterModelViewSet(ModelViewSet):
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
+    pagination_class = MasterPagination
 
+    def filter_queryset(self, queryset):
+        queryset = super().filter_queryset(queryset)
+        values = self.request.GET.get('values', '')
+        
+        if values != '':
+            queryset = queryset.filter(pk__in=values.split(','))
+        return queryset
+    
     def get_serializer_class(self):
         match self.action:
             case 'choices_list':

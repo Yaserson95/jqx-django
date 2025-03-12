@@ -110,16 +110,9 @@
 
 .master-model-list{
     display: flex;
-    flex-direction: column; 
+    flex-direction: column;
  }
 
-
-.master-paginator {
-    min-height: 40px;
-    height: 40px;
-    border: none;
-    display: flex;
-}
 
 .master-toolbar{
     display: flex;
@@ -138,6 +131,23 @@
     margin-bottom: 0px !important;
 }
 
-.master-toolbar .jqx-input{
-    margin-right: 6px;
+
+.master-paginator {
+    min-height: 40px;
+    height: 40px;
+    border: none;
+    display: flex;
+}
+
+.master-paginator .total-pages{
+    width: min-content;
+    font-size: 16px;
+    line-height: 20px;
+    padding: 5px 7px;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.master-jqx-widget.jqx-listbox{
+    min-width: 250px;
 }

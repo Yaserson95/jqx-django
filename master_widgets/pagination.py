@@ -1,11 +1,16 @@
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.utils.urls import replace_query_param
 
+
+
 class MasterPagination(PageNumberPagination):
     page_size_query_param = 'pagesize'
-    page_query_param = 'pagenum'
     max_page_size = 50
-
+    
+    
+class MasterGridPagination(MasterPagination):
+    page_query_param = 'pagenum'
+    
     def get_page_number(self, request, paginator):
         return int(super().get_page_number(request, paginator)) + 1
     
@@ -25,8 +30,3 @@ class MasterPagination(PageNumberPagination):
         if link is None:
             return None        
         return replace_query_param(link, self.page_query_param, page_num_method() - 1)
-
-
-
-    
-

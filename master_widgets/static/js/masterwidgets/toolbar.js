@@ -62,7 +62,6 @@ class MasterToolbar extends MasterWidget{
                 break;
         }
 
-
         tool.attr('title', item.label || '');
 
         if(!menuToolIninitialization){

@@ -1,17 +1,18 @@
 class MasterPaginator extends MasterToolbar{
     widgetOptionsPatterns(patterns = {}) {
         return super.widgetOptionsPatterns({
-            'currentPage': {'type': 'number', 'default': 1},
-            'totalPages': {'type': 'number', 'default': 1},
-            'onPageChange': {'type': 'function'}
+            'page': {'type': 'number', 'default': 1},
+            'pageSize': {'type': 'number', 'name':'page_size', 'default': 10},
+            'count': {'type': 'number'},
+            ...patterns
         });
     }
     init(attrs = {}){
         attrs.buttons = [
             {'label':'<<', 'name':'firstPage', 'width': '30px', 'height': '100%'},
             {'label':'<', 'name':'prevPage', 'width': '30px', 'height': '100%'},
-            {'name':'currentPage', 'type':'input', 'width': '50px', 'height': '100%'},
-            {'name':'totalPages', 'type':'custom', 'width': '50px', 'height': '100%'},
+            {'name':'currentPage', 'type':'input', 'width': '40px', 'height': '100%'},
+            {'name':'totalPages', 'type':'custom', 'height': '100%'},
             {'label':'>', 'name':'nextPage', 'width': '30px', 'height': '100%'},
             {'label':'>>', 'name':'lastPage', 'width': '30px', 'height': '100%'},
         ];
@@ -23,107 +24,110 @@ class MasterPaginator extends MasterToolbar{
         });
 
         super.init(attrs);
-    }
-}
 
-/*
-class MasterPaginator extends MasterWidget {
-    widgetOptionsPatterns(patterns = {}) {
-        return super.widgetOptionsPatterns({
-            'currentPage': {'type': 'number', 'default': 1},
-            'totalPages': {'type': 'number', 'default': 1},
-            'onPageChange': {'type': 'function'}
-        });
+        if(this.page > this.total_pages)
+            this.page = this.total_pages;
     }
 
-    init(options = {}) {
-        super.init(options);
-        this._firstButton = null;
-        this._prevButton = null;
-        this._pageInput = null;
-        this._totalPagesSpan = null;
-        this._nextButton = null;
-        this._lastButton = null;
-    }
-
-    render() {
+    render(){
         super.render();
-        this.target.empty().addClass('master-paginator');
+        $(this.getTool('totalPages'))
+            .addClass('total-pages')
+            .text(`/${this.total_pages}`);
         
-        // Создание элементов управления
-        this._firstButton = this._createNavButton('<<', this.currentPage <= 1);
-        this._prevButton = this._createNavButton('<', this.currentPage <= 1);
-        
-        // Поле ввода и отображение общего количества
-        const pageContainer = $('<div/>', {'class': 'page-container'}).appendTo(this.target);
-        this._pageInput = $('<input/>', {
-            'type': 'text',
-            'class': 'page-input',
-            'value': this.currentPage
-        }).appendTo(pageContainer);
+        $(this.getTool('currentPage'))
+            .css('text-align','center')
+            .val(this.page);
 
-        this._totalPagesSpan = $('<span/>', {
-            'class': 'total-pages',
-            text: ` / ${this.totalPages}`
-        }).appendTo(pageContainer);
-
-        this._nextButton = this._createNavButton('>', this.currentPage >= this.totalPages);
-        this._lastButton = this._createNavButton('>>', this.currentPage >= this.totalPages);
-
-        
         this._bindEvents();
-    }
-
-    _createNavButton(symbol, disabled) {
-        return $('<button/>', {
-            'class': 'page-nav',
-            html: symbol,
-            disabled: disabled
-        }).appendTo(this.target);
+        this._updateButtons();
     }
 
     _bindEvents() {
         // Навигация
-        this._firstButton.on('click', () => this.setPage(1));
-        this._prevButton.on('click', () => this.setPage(this.currentPage - 1));
-        this._nextButton.on('click', () => this.setPage(this.currentPage + 1));
-        this._lastButton.on('click', () => this.setPage(this.totalPages));
+        $(this.getTool('firstPage')).on('click', () => this.page = 1);
+        $(this.getTool('prevPage')).on('click', () => this.page--);
+        $(this.getTool('nextPage')).on('click', () => this.page++);
+        $(this.getTool('lastPage')).on('click', () => this.page = this.total_pages);
+
 
         // Обработка ручного ввода
-        this._pageInput.on('blur keypress', (e) => {
+        var page_input = $(this.getTool('currentPage'));
+        page_input.on('blur keypress', (e) => {
             if(e.type === 'keypress' && e.which !== 13) return;
             
-            const value = parseInt(this._pageInput.val());
-            if(!isNaN(value) && value !== this.currentPage) {
-                this.setPage(value);
+            const value = parseInt(page_input.val());
+            if(!isNaN(value) && value !== this.page) {
+                this.page = value;
             } else {
-                this._pageInput.val(this.currentPage); // Восстановление значения
+                page_input.val(this.page); // Восстановление значения
             }
         });
     }
 
     _updateButtons() {
-        this._firstButton.prop('disabled', this.currentPage <= 1);
-        this._prevButton.prop('disabled', this.currentPage <= 1);
-        this._nextButton.prop('disabled', this.currentPage >= this.totalPages);
-        this._lastButton.prop('disabled', this.currentPage >= this.totalPages);
+        $(this.getTool('firstPage')).jqxButton('disabled', this.page <= 1);
+        $(this.getTool('prevPage')).jqxButton('disabled', this.page <= 1);
+        $(this.getTool('nextPage')).jqxButton('disabled', this.page >= this.total_pages);
+        $(this.getTool('lastPage')).jqxButton('disabled', this.page >= this.total_pages);
     }
 
-    setPage(page) {
-        page = Math.max(1, Math.min(page, this.totalPages));
-        if(page === this.currentPage) return;
+    set page(page){
+        if(page === this.__page) return;
 
-        this.currentPage = page;
-        this._pageInput.val(page);
-        this._totalPagesSpan.text(` / ${this.totalPages}`);
-        this._updateButtons();
-        
-        if(this.onPageChange) this.onPageChange(page);
+        if(this.target.data('masterWidget')){
+            page = Math.max(1, Math.min(page, this.total_pages));
+            this.__page = page;
+            $(this.getTool('currentPage')).val(page);
+            this._updateButtons();
+            this.trigger('changePage');
+        }else{
+            if(page <= 0)
+                throw new Error(`Page number must be a positive number`);
+            this.__page = page;
+        }
     }
 
-    update(totalPages, currentPage = 1) {
-        this.totalPages = Math.max(1, totalPages);
-        this.setPage(currentPage);
+    get page(){
+        return this.__page;
+    }
+
+    set page_size(page_size){
+        if(page_size === this.__page_size) return;
+        if(page_size < 10)
+            throw new Error('Page size must be > 10');
+
+        this.__page_size = page_size;
+        this.__update();
+    }
+
+    get page_size(){
+        return this.__page_size;
+    }
+
+    set count(count){
+        if(count === this.__count) return;
+        if(count < 0)
+            throw new Error('Count must be a positive number');
+        this.__count = count;
+        this.__update();
+    }
+    
+    get count(){
+        return this.__count;
+    }
+
+    get total_pages(){
+        return Math.ceil(this.count / this.page_size);
+    }
+
+    __update(){
+        if(this.target.data('masterWidget')){
+            $(this.getTool('totalPages')).text(`/${this.total_pages}`);
+            if(this.page > this.total_pages)
+                this.page = this.total_pages;
+
+            this._updateButtons();
+        }
     }
 }
-*/
