@@ -18,11 +18,18 @@ class MasterModelViewSet(ModelViewSet):
         return queryset
     
     def get_serializer_class(self):
+        print(self.action)
         match self.action:
             case 'choices_list':
+                return ChoiseItemSerializer
+            case 'choices_retrieve':
                 return ChoiseItemSerializer
         return super().get_serializer_class()
 
     @action(url_path='choices', url_name='choices_list', methods=['GET'], detail=False)
     def choices_list(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
+
+    @action(url_path='choices/(?P<pk>[^/.]+)', url_name='choices_detail', methods=['GET'], detail=False)
+    def choices_retrieve(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)

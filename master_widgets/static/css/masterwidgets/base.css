@@ -151,3 +151,9 @@
 .master-jqx-widget.jqx-listbox{
     min-width: 250px;
 }
+
+.dropdown-input{
+    padding: 15px 0px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

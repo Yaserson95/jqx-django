@@ -31,6 +31,7 @@ class MasterModelList extends MasterList{
         new MasterModelLoader(this);
         super.init(attrs);
         this.__checked = [];
+        this.__label = null;
     }
     render(){
         this.paginator = this.__renderPaginator(this.target);
@@ -56,9 +57,9 @@ class MasterModelList extends MasterList{
             });
 
             this.target.css('height', '100%');
+            this.drop_down_target = drop_down_target;
         }
         this.__renderEvents();
-        
         super.render();
     }
 
@@ -102,6 +103,7 @@ class MasterModelList extends MasterList{
 
     __renderEvents(){
         this.paginator.on('changePage', ()=>{
+            this.jqx('selectIndex', -1);
             this.attrs.source.dataBind();
         });
 
@@ -124,12 +126,30 @@ class MasterModelList extends MasterList{
                         return;
                     }
                 }
-                this.jqx('selectIndex', -1);
+                if(this.drop_down && this.__label === null){
+                    this.model.getChoiceItem(this.__value)
+                        .then(item=>this.__select_item(item));
+
+                }
             }, 
             'select': (e)=>{
-                console.log(e);
+                if(this.attrs.checkboxes) return;
+                var index = parseInt(e.args.index);
+                if(index === -1) return;
+                var item = this.jqx('getItem', index);
+                this.__select_item(item);
             }
         });
+    }
+    __select_item(item){
+        this.__label = item.label;
+        this.__value = item.value;
+        this.__set_dropdown_text(this.label);
+    }
+
+    __set_dropdown_text(text){
+        var dropDownContent = `<div style="margin-left: 3px;" class="dropdown-input">${text}</div>`;
+        this.drop_down_target.jqxDropDownButton('setContent', dropDownContent);
     }
     __renderPaginator(target){
         var p_target = $('<div/>', {'class':'listbox-paginator'}).appendTo(target);
@@ -168,8 +188,11 @@ class MasterModelList extends MasterList{
     get value(){
         if(this.attrs.checkboxes)
             return this.__checked;
+        return this.__value;
+    }
 
-        return this.jqx_target.val();
+    get label(){
+        return this.__label;
     }
     
     set value(value){
@@ -180,8 +203,5 @@ class MasterModelList extends MasterList{
         }else{
             this.__value = value;
         }
-
-        if(this.target.data('masterWidget'))
-            this.attrs.source.dataBind();
     }
 }

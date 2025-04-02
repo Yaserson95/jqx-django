@@ -345,7 +345,6 @@ class MasterModel{
     async retrieve(id) {
         const data = await new Promise(async (resolve, reject) => {
             const adapter = await this.getAdapter({
-                'url': `${this.endpoint}${id}/`,
                 'beforeLoadComplete': (records)=>{
                     resolve(records);
                 },
@@ -353,6 +352,23 @@ class MasterModel{
                     reject(null);
                 }
             }, true);
+            adapter.dataBind();
+        });
+        if(data.length > 0) return data[0];
+        return null;
+    }
+
+    async getChoiceItem(id){
+        const data = await new Promise(async (resolve, reject) => {
+            const adapter = await this.getChoicesAdapter({
+                'beforeLoadComplete': (records)=>{
+                    resolve(records);
+                },
+                'loadError': (err)=>{
+                    reject(null);
+                }
+            }, true);
+            adapter._source.url += `${id}/`;
             adapter.dataBind();
         });
         if(data.length > 0) return data[0];

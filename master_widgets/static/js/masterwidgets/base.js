@@ -275,13 +275,16 @@ class MasterWidget{
      * Renders widget and applies theme settings
      */
 	render(){
-		this.jqx({
+		this.jqx(this.getWidgetOptions());
+		this.target.data('masterWidget', this);
+	}
+	getWidgetOptions(){
+		return {
 			...this.attrs,
 			'width': this.jqx_width,
 			'height': this.jqx_height,
 			'theme': this.theme
-		});
-		this.target.data('masterWidget', this);
+		}
 	}
 	/**
      * Proxy method for JQX widget operations
