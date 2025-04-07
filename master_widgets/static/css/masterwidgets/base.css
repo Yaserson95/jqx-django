@@ -157,3 +157,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.master-form{
+    overflow-y: auto;
+}
+
+.master-form > .jqx-widget table{
+    border: none !important;
+    border-radius: 0px;
+}

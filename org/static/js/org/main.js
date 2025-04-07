@@ -19,79 +19,10 @@
 
         list.value = 1;
 
-        var form = new MasterForm('#simple-form', {
+        var form = new MasterModelForm('#simple-form', {
             'width': '100%',
+            'model': 'product',
             'template':[
-                {
-                    bind: 'firstName',
-                    type: 'text',
-                    label: 'First name',
-                    required: true,
-                    labelWidth: '80px',
-                    width: '250px',
-                    info: 'Enter first name',
-                    infoPosition: 'right',
-                    maxLength: 30,
-                    minLength: 5
-                },
-                {
-                    bind: 'lastName',
-                    type: 'text',
-                    label: 'Last name',
-                    required: true,
-                    labelWidth: '80px',
-                    width: '250px',
-                    info: 'Enter last name',
-                    maxLength: 30
-                },  
-                {
-                    bind: 'company',
-                    type: 'text',
-                    label: 'Company',
-                    required: false,
-                    labelWidth: '80px',
-                    width: '250px'
-                },
-                {
-                    bind: 'address',
-                    type: 'text',
-                    label: 'Address',
-                    required: true,
-                    labelWidth: '80px',
-                    width: '250px'
-                },
-                {
-                    bind: 'city',
-                    type: 'text',
-                    label: 'City',
-                    required: true,
-                    labelWidth: '80px',
-                    width: '250px'
-                },
-                {
-                    bind: 'state',
-                    type: 'option',
-                    label: 'State',
-                    required: true,
-                    labelWidth: '80px',
-                    width: '250px',
-                    component: 'jqxDropDownList',
-                    options: [
-                        { value: 'California' },
-                        { value: 'New York'},
-                        { value: 'Oregon'},
-                        { value: 'Illinois'},
-                        { value: 'Texas'}
-                    ]
-                },
-                {
-                    bind: 'zip',
-                    type: 'text',
-                    label: 'Zip code',
-                    required: true,
-                    labelWidth: '80px',
-                    width: '250px'
-                },
                 {
                     type: 'blank',
                     rowHeight: '10px'
@@ -120,5 +51,7 @@
                 }
             ]
         });
+
+        form.id = 2;
     });
 });

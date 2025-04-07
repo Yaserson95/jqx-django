@@ -111,6 +111,15 @@ function splitObject(obj, keys){
 }
 
 
+function copyKeys(obj, keys){
+	var newObj = {};
+	for(var i in keys){
+		if(obj[keys[i]] !== undefined)
+			newObj[keys[i]] = obj[keys[i]];
+	}
+	return newObj;
+}
+
 /**
  * Get Font Awesome icon element
  * @param {string} icon 
@@ -533,6 +542,8 @@ class MasterModelLoader{
 			}
 
 			this.widget.loader(this.widget.model.initModelOptions()).then(()=>{
+				if(typeof this.widget.load === 'function')
+					this.widget.load();
 				original.apply(this.widget, []);
 			});
 		}
@@ -573,14 +584,14 @@ class MasterModelLoader{
 			}
 			return false;
 		},
-		'val':function(...args){
-			var master_widget = this.data('masterWidget');
-			if(master_widget){
-				if(typeof master_widget.value === 'function')
-					return master_widget.value(...args);
-				return null;
-			}
-			return val_func.apply(this, args);
+		'val': function(...args){
+			var widget = this.data('masterWidget');
+			if(!widget)
+				return val_func.apply(this, args);
+			
+			if(args.length > 0)
+				widget.value = args[0];
+			else return widget.value;
 		}
 	});
 

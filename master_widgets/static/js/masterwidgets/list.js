@@ -33,6 +33,7 @@ class MasterModelList extends MasterList{
         this.__checked = [];
         this.__label = null;
     }
+
     render(){
         this.paginator = this.__renderPaginator(this.target);
         this.paginator.hidden = true;
@@ -79,7 +80,6 @@ class MasterModelList extends MasterList{
                 if(search !== '') {
                     extra.search = search;
                 }
-
                 //Other parametres
                 return {...data, ...extra};
             },
@@ -127,9 +127,10 @@ class MasterModelList extends MasterList{
                     }
                 }
                 if(this.drop_down && this.__label === null){
-                    this.model.getChoiceItem(this.__value)
-                        .then(item=>this.__select_item(item));
-
+                    if(this.__value){
+                        this.model.getChoiceItem(this.__value)
+                            .then(item=>this.__select_item(item));
+                    }
                 }
             }, 
             'select': (e)=>{
@@ -196,6 +197,7 @@ class MasterModelList extends MasterList{
     }
     
     set value(value){
+        //console.log(value);
         if(this.attrs.checkboxes){
             if(!Array.isArray(value))
                 throw new Error('Value type must be a array');

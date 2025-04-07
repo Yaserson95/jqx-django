@@ -328,6 +328,10 @@ class MasterModel{
         }
     }
 
+    getRelation(name){
+        return this.options.relations[name] || null;
+    }
+
     /**
      * Получить список объектов.
      * @param {object} params - Параметры запроса (например, фильтры, пагинация).
@@ -345,6 +349,7 @@ class MasterModel{
     async retrieve(id) {
         const data = await new Promise(async (resolve, reject) => {
             const adapter = await this.getAdapter({
+                "url": this.endpoint + id + '/',
                 'beforeLoadComplete': (records)=>{
                     resolve(records);
                 },
