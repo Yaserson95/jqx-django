@@ -9,13 +9,21 @@
             'allowDrag': true,
             'allowDrop': true
         });*/
+
+        var lst = new MasterList('#list', {
+            'source': Object.keys($.fn).map((item, i)=>({
+                'label': `${i + 1}. ${item}`,
+                'value': item.toUpperCase()
+            }))
+        });
         
-        var list = new MasterModelList('#object-choice', {
+        
+        /*var list = new MasterModelList('#object-choice', {
             'model': 'product',
             'pageSize': 10,
             //'checkboxes':true,
             'dropDown': true
-        });
+        });*/
 
         list.value = 1;
 

@@ -166,3 +166,8 @@
     border: none !important;
     border-radius: 0px;
 }
+
+.master-list{
+    display: flex;
+    flex-direction: column;
+}

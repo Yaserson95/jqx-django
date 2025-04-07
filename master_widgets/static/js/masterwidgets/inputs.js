@@ -4,6 +4,7 @@ class MasterWidgetInput extends MasterWidget{
             'contentWidth': {'type': ['number', 'string'], 'name':'content_width', 'default': 300},
             'contentHeight': {'type': ['number', 'string'], 'name':'content_height', 'default': 200},
             'type': {'type': 'string', 'default': 'none'},
+            //'widget': {'type': 'function'},
             ...patterns
         });
     }
@@ -26,6 +27,7 @@ class MasterWidgetInput extends MasterWidget{
             'dropDownWidth': this.content_width,
             'dropDownHeight': this.content_height
         });
+        
     }
 
     renderDialog(){

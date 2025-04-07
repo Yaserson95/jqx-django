@@ -1,4 +1,10 @@
 class MasterList extends MasterWidget{
+    widgetOptionsPatterns(patterns = {}) {
+        return super.widgetOptionsPatterns({
+            'source': {'type': 'array'},
+            ...patterns
+        });
+    }
     init(attrs = {}){
         this.jqx_type = 'jqxListBox';
         defaults(attrs, {
@@ -7,7 +13,100 @@ class MasterList extends MasterWidget{
         });
         super.init(attrs);
     }
+
+    render(){
+        super.render();
+        this.paginator = this.renderPaginator();
+        this.paginator.on('changePage', (e)=>{
+            this.onChangePage(e);
+        });
+        this.searcher = this.renderSearch();
+
+        this.jqx('source', this.getDataOnPage());
+    }
+
+    renderPaginator(){
+        var p_target = $('<div/>', {'class':'listbox-paginator'}).appendTo(this.target);
+        return new MasterPaginator(p_target, {
+            'parent': this, 
+            'count': this.count,
+            'width': '100%'
+        });
+    }
+
+    renderSearch(){
+        var seacrh_input = $('<input/>', {
+            'type': 'text', 
+            'class': 'listbox-search', 
+            'placeholder':'Найти'
+        }).prependTo(this.target);
+
+        seacrh_input.jqxInput({
+            'theme': this.theme,
+            'width': '100%',
+            'height': '40px'
+        });
+        seacrh_input.on('blur keypress', (e) =>{
+            if(e.type === 'keypress' && e.which !== 13) return;
+            this.paginator.page = 1;
+            this.onSearch(e);
+        });
+
+        return seacrh_input;
+    }
+
+    getDataOnPage(){
+        var data = this.searched? this.searched: this.source;
+        return this.source.slice((this.page - 1)*this.page_size, this.page*this.page_size);
+    }
+
+    onChangePage(evt){
+        this.page = this.paginator.page;
+        this.jqx('source', this.getDataOnPage());
+    }
+
+    onSearch(evt){
+        this.searched = [];
+        var val = this.searcher.val();
+        if(!val && this.searched){
+            delete this.searched;
+        }
+
+        for(var i in this.source){
+            if(this.source[i].label.indexOf(this.searcher.val() !== -1))
+                this.searched.push(this.source[i]);
+        }
+        this.paginator.count = this.searched.length;
+    }
+
+    set page(page){
+        this.paginator.page = page;
+    }
+
+    get page(){
+        return this.paginator.page;
+    }
+
+    set page_size(page_size){
+        this.paginator.page_size = page_size;
+    }
+
+    get page_size(){
+        return this.paginator.page_size;
+    }
+
+    get count(){
+        return this.source.length;
+    }
+
+    get total_pages(){
+        return Math.ceil(this.count/this.page_size);
+    }
 }
+
+//class MasterModelList2 
+
+
 
 class MasterModelList extends MasterList{
     widgetOptionsPatterns(patterns = {}) {
