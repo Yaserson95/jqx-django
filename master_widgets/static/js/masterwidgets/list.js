@@ -1,28 +1,35 @@
-class MasterList extends MasterWidget{
+class BaseMasterList extends MasterWidget{
+    static getValueIndex(list, value){
+        for(var i in list){
+            if(list[i].value === value)
+                return i;
+        }
+        return -1;
+    }
     widgetOptionsPatterns(patterns = {}) {
         return super.widgetOptionsPatterns({
-            'source': {'type': 'array'},
+            'pageSize': {'type': 'number', 'name':'page_size', 'default': 10},
             ...patterns
         });
     }
     init(attrs = {}){
         this.jqx_type = 'jqxListBox';
         defaults(attrs, {
-            'width': 200,
-            'height': 300,
+            'width': 250,
+            'height': 320,
         });
         super.init(attrs);
     }
-
-    render(){
-        super.render();
+    render(){        
         this.paginator = this.renderPaginator();
         this.paginator.on('changePage', (e)=>{
             this.onChangePage(e);
         });
         this.searcher = this.renderSearch();
+        super.render();
 
-        this.jqx('source', this.getDataOnPage());
+        if(!this.attrs.checkboxes)
+            this.on('select', (evt)=>{this.onSelect(evt)});
     }
 
     renderPaginator(){
@@ -30,6 +37,7 @@ class MasterList extends MasterWidget{
         return new MasterPaginator(p_target, {
             'parent': this, 
             'count': this.count,
+            'pageSize': pop_attr(this, '__page_size'),
             'width': '100%'
         });
     }
@@ -48,35 +56,43 @@ class MasterList extends MasterWidget{
         });
         seacrh_input.on('blur keypress', (e) =>{
             if(e.type === 'keypress' && e.which !== 13) return;
-            this.paginator.page = 1;
             this.onSearch(e);
         });
 
         return seacrh_input;
     }
 
-    getDataOnPage(){
-        var data = this.searched? this.searched: this.source;
-        return this.source.slice((this.page - 1)*this.page_size, this.page*this.page_size);
+    getSource(){
+        return [];
     }
 
     onChangePage(evt){
         this.page = this.paginator.page;
-        this.jqx('source', this.getDataOnPage());
+        this.update();
     }
 
     onSearch(evt){
-        this.searched = [];
-        var val = this.searcher.val();
-        if(!val && this.searched){
-            delete this.searched;
-        }
+        this.paginator.page = 1;
+        this.update();
+    }
 
-        for(var i in this.source){
-            if(this.source[i].label.indexOf(this.searcher.val() !== -1))
-                this.searched.push(this.source[i]);
-        }
-        this.paginator.count = this.searched.length;
+    onSelect(evt){
+        if(evt.args.index === -1)
+            return;
+        var item = this.jqx('getSelectedItem');
+        this.__value = item.value;
+    }
+
+    validateValue(value){
+        return value;
+    }
+
+    update(){
+        this.jqx('selectIndex', -1);
+    }
+
+    getListItem(value){
+        return null;
     }
 
     set page(page){
@@ -88,221 +104,257 @@ class MasterList extends MasterWidget{
     }
 
     set page_size(page_size){
-        this.paginator.page_size = page_size;
+        if(this.paginator)
+            this.paginator.page_size = page_size;
+        this.__page_size = page_size;
     }
 
     get page_size(){
-        return this.paginator.page_size;
+        if(this.paginator)
+            return this.paginator.page_size;
+        else return null;
+    }
+
+    get count(){
+        return this.jqx('getItems').length;
+    }
+
+    get total_pages(){
+        return this.paginator.total_pages;
+    }
+
+    set value(value){
+        if(value === null){
+            if(this.__value)
+                delete this.__value;
+            return;
+        }
+        this.__value = this.validateValue(value);
+        this.update();
+    }
+
+    get value(){
+        return this.__value || null;
+    }
+
+    get search_text(){
+        if(!this.searcher) return null;
+        var val = this.searcher.val();
+        if(val === '' || val === null) return null;
+        return val;
+    }
+}
+
+class MasterList extends BaseMasterList{
+    widgetOptionsPatterns(patterns = {}) {
+        return super.widgetOptionsPatterns({
+            'source': {'type': 'array'},
+            ...patterns
+        });
+    }
+
+    render(){
+        super.render();
+        this.update();
+    }
+
+    getSource(){
+        var data = this.searched? this.searched: this.source;
+        return data.slice((this.page - 1)*this.page_size, this.page*this.page_size);
+    }
+
+    onChangePage(evt){
+        this.page = this.paginator.page;
+        this.update();
+    }
+
+    onSearch(evt){
+        var val = this.search_text;
+        if(val === null){
+            if(this.searched) delete this.searched;
+            this.paginator.count = this.source.length;
+        }else{
+            this.searched = [];
+            for(var i in this.source){
+                if(this.source[i].label.indexOf(val)!==-1)
+                    this.searched.push(this.source[i]);
+            }
+            this.paginator.count = this.searched.length;   
+        }
+        this.paginator.page = 1;
+        this.update();
+    }
+
+    validateValue(value){
+        if(this.attrs.checkboxes){
+            if(!Array.isArray(value))
+                throw new Error('Value type must be an array');
+
+            var newValues = [];
+            for(var i in this.source){
+                var checked = value.indexOf(this.source[i].value);
+                this.source[i].checked = checked !== -1;
+                if(this.source[i].checked)
+                    newValues.push(value[checked]);
+            }
+            return newValues;
+        }else{
+            for(var i in this.source){
+                if(this.source[i].value === value)
+                    return value;
+            }
+        }
+        return null;
+    }
+
+    update(){
+        var local = this.getSource();
+        this.jqx('source', local);
+        this.trigger('dataBindComplite');
+        if(this.__value && !this.attrs.checkboxes){
+            this.jqx('selectIndex', BaseMasterList.getValueIndex(local, this.__value));
+        }
+    }
+
+    getListItem(value){
+        for(var i in this.source){
+            if(this.source[i].value === value)
+                return this.source[i];
+        }
+        return null;
     }
 
     get count(){
         return this.source.length;
     }
-
-    get total_pages(){
-        return Math.ceil(this.count/this.page_size);
-    }
 }
 
-//class MasterModelList2 
-
-
-
-class MasterModelList extends MasterList{
+class MasterModelList extends BaseMasterList{
     widgetOptionsPatterns(patterns = {}) {
-        return super.widgetOptionsPatterns({
-            'pageSize': {'type': 'number', 'name':'page_size', 'default': 100},
-            'searched': {'type': 'boolean', 'default': true},
-            'dropDown':  {'type': 'boolean', 'default': false, 'name':'drop_down'},
-            'contentWidth': {'type': ['number', 'string'], 'name':'content_width', 'default': 300},
-            'contentHeight': {'type': ['number', 'string'], 'name':'content_height', 'default': 350},
-            ...patterns
-        });
+        patterns = super.widgetOptionsPatterns(patterns);
+        delete patterns.source;
+        return patterns;
     }
-    
+
     init(attrs={}){
-        if(attrs.dropDown){
-            defaults(attrs, {
-                'width': 200,
-                'height': 40,
-            });
-        }
+        this.__count = 0;
+        this.target.addClass('master-list');
         new MasterModelLoader(this);
         super.init(attrs);
-        this.__checked = [];
-        this.__label = null;
+    }
+
+    load(){
+        this.source = this.model.getChoicesAdapter({
+            'autoBind': false,
+            'formatData': (data)=>{return this.formatData(data)},
+            'loadComplete':(data)=>{return this.loadComplete(data)},
+            'beforeLoadComplete': (records)=>{return this.beforeLoadComplete(records)}
+        });
     }
 
     render(){
-        this.paginator = this.__renderPaginator(this.target);
-        this.paginator.hidden = true;
-        this.paginator.page_size = this.page_size;
-
-        this.attrs.source = this.__getListSource();
-
-        if(this.searched)
-            this.search_input = this.__renderSearch(this.target);
-
-        if(this.drop_down){
-            var drop_down_target = $('<div/>', {'class':'master-dropdown'})
-                .insertAfter(this.target)
-                .append(this.target);
-
-            drop_down_target.jqxDropDownButton({
-                'theme': this.theme,
-                'width':this.width,
-                'height': this.height,
-                'dropDownWidth': this.content_width,
-                'dropDownHeight': this.content_height
-            });
-
-            this.target.css('height', '100%');
-            this.drop_down_target = drop_down_target;
-        }
-        this.__renderEvents();
+        this.attrs.source = this.getSource();
         super.render();
     }
 
-    __getListSource(){
-        return this.model.getChoicesAdapter({
-            'formatData': (data)=>{
-                //Search
-                var search = this.search_input.val();
-
-                //Extra parametries
-                var extra = {
-                    'page': this.paginator.page,
-                    'pagesize': this.paginator.page_size,
-                };
-
-                //Add search to extra
-                if(search !== '') {
-                    extra.search = search;
-                }
-                //Other parametres
-                return {...data, ...extra};
-            },
-            'loadComplete':(data)=>{
-                this.paginator.count = data.count;
-                if(this.paginator.total_pages > 1)
-                    this.paginator.hidden = false;
-                else{
-                    this.paginator.hidden = true;
-                }
-            },
-            'beforeLoadComplete': (records)=>{
-                if(this.attrs.checkboxes){
-                    for(var i in records){
-                        records[i].checked = this.__checked.indexOf(records[i].value)!==-1;
-                    }
-                }
-            }
-        });
+    update(){
+        super.update();
+        if(this.source) this.source.dataBind();
     }
 
-    __renderEvents(){
-        this.paginator.on('changePage', ()=>{
-            this.jqx('selectIndex', -1);
-            this.attrs.source.dataBind();
-        });
-
-        this.jqx_target.on({
-            'checkChange': (e)=>{
-                var index = this.__checked.indexOf(e.args.value);
-                if(e.args.checked && index === -1)
-                    this.__checked.push(e.args.value);
-                else if(!e.args.checked && index !== -1){
-                    this.__checked.splice(index, 1);
-                }
-            },
-            'bindingComplete': (e)=>{
-                if(this.attrs.checkboxes) return;
-                var records = this.attrs.source.records;
-                
-                for(var i in records){
-                    if(records[i].value === this.__value){
-                        this.jqx('selectIndex', i);
-                        return;
-                    }
-                }
-                if(this.drop_down && this.__label === null){
-                    if(this.__value){
-                        this.model.getChoiceItem(this.__value)
-                            .then(item=>this.__select_item(item));
-                    }
-                }
-            }, 
-            'select': (e)=>{
-                if(this.attrs.checkboxes) return;
-                var index = parseInt(e.args.index);
-                if(index === -1) return;
-                var item = this.jqx('getItem', index);
-                this.__select_item(item);
-            }
-        });
-    }
-    __select_item(item){
-        this.__label = item.label;
-        this.__value = item.value;
-        this.__set_dropdown_text(this.label);
+    getSource(){
+        return this.source || [];
     }
 
-    __set_dropdown_text(text){
-        var dropDownContent = `<div style="margin-left: 3px;" class="dropdown-input">${text}</div>`;
-        this.drop_down_target.jqxDropDownButton('setContent', dropDownContent);
-    }
-    __renderPaginator(target){
-        var p_target = $('<div/>', {'class':'listbox-paginator'}).appendTo(target);
-        return new MasterPaginator(p_target, {
-            'parent': this, 
-            'count': 1,
-            'width': '100%'
-        });
-    }
-    __renderSearch(target){
-        var seacrh_input = $('<input/>', {
-            'type': 'text', 
-            'class': 'listbox-search', 
-            'placeholder':'Найти'
-        }).prependTo(target);
+    formatData(data){
+        var extra = {
+            'page': this.paginator.page,
+            'pagesize': this.paginator.page_size,
+        };
 
-        seacrh_input.jqxInput({
-            'theme': this.theme,
-            'width': '100%',
-            'height': '40px'
-        });
+        //Search
+        var search = this.search_text;
+        //Add search to extra
+        if(search !== null) extra.search = search;
 
-        seacrh_input.on('blur keypress', (e) =>{
-            if(e.type === 'keypress' && e.which !== 13) return;
-            this.paginator.page = 1;
-            this.attrs.source.dataBind();
-        });
-
-        return seacrh_input;
+        //Other parametres
+        return {...data, ...extra};
     }
-    
-    get content_target(){
-        return this.drop_down? this.__drop_down: this.target;
-    }
-
-    get value(){
-        if(this.attrs.checkboxes)
-            return this.__checked;
-        return this.__value;
-    }
-
-    get label(){
-        return this.__label;
-    }
-    
-    set value(value){
-        //console.log(value);
-        if(this.attrs.checkboxes){
-            if(!Array.isArray(value))
-                throw new Error('Value type must be a array');
-            this.__checked = value;
-        }else{
-            this.__value = value;
+    loadComplete(data){
+        this.paginator.count = data.count;
+        if(this.paginator.total_pages > 1)
+            this.paginator.hidden = false;
+        else{
+            this.paginator.hidden = true;
         }
+
+        if(!this.attrs.checkboxes && this.__value){
+            this.jqx('selectIndex', BaseMasterList.getValueIndex(this.source.records, this.__value));
+        }
+        this.trigger('dataBindComplite');
+    }
+    beforeLoadComplete(records){
+        if(!this.__value)
+            return records;
+
+        if(this.attrs.checkboxes){
+            for(var i in records){
+                records[i].checked = this.__value.indexOf(records[i].value)!==-1;
+            }
+        }
+        return records;
+    }
+
+    validateValue(value){
+        if(this.attrs.checkboxes &&!Array.isArray(value))
+            throw new Error('Value type must be an array');
+        return value;
+    }
+
+    getListItem(value){
+        return this.model.getChoiceItem(value);
+    }
+
+    get count(){
+        return this.__count || 0;
+    }
+}
+
+class MasterListInput extends MasterWidgetInput{
+    init(attrs = {}){
+        defaults(attrs, {'contentHeight': 300});
+        if(attrs.model)
+            attrs.widgetClass = MasterModelList;
+        else if(attrs.source)
+            attrs.widgetClass = MasterList;
+        super.init(attrs);
+    }
+    render(){
+        super.render();
+        this.widget.on({
+            'select': (event)=>{
+                var item = this.widget.jqx('getSelectedItem');
+                if(item !== null)
+                    this.label = item.label;
+            },
+            'dataBindComplite':(event)=>{
+                var item = this.widget.jqx('getSelectedItem');
+                if(item === null && !this.__initLabel && this.widget.value){
+                    if(this.widget instanceof MasterModelList){
+                        this.widget.getListItem(this.widget.value).then(item =>{
+                            this.label = item.label;
+                        });
+                    }else if(this.widget instanceof MasterList){
+                        this.label = this.widget.getListItem(this.widget.value).label;
+                    }
+                    this.__initLabel = true;
+                }
+            }
+        });
+    }
+
+    set value(value){
+        this.widget.value = value;
+        this.__initLabel = false;
     }
 }

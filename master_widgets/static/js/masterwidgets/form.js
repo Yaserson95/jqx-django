@@ -1,4 +1,8 @@
 const IGNORED_TYPES = ['blank', 'button'];
+const FIELD_TYPES = [
+    'text', 'option', 'blank', 'button', 'color', 
+    'number', 'boolean', 'password', 'label', 'time', 'date', 'datetime'
+];
 const FIELD_PROPS = {
     'textarea':[
         "width", "height", "disabled", "value", 
@@ -14,6 +18,9 @@ const FIELD_PROPS = {
 };
 
 class MasterForm extends MasterWidget{
+    static isCustomType(type){
+        return FIELD_TYPES.indexOf(type) === -1;
+    }
     widgetOptionsPatterns(patterns={}){
 		return super.widgetOptionsPatterns({
             ...patterns,
@@ -79,13 +86,17 @@ class MasterForm extends MasterWidget{
     }
 
     createValidators(field, info, field_validators = []){
-        if(info.required)
+        if(MasterForm.isCustomType(field.type)){
+            
+        }
+        if(info.required){
             field_validators.push({
                 'input': field[0], 
                 'message': 'Заполните поле', 
                 'action': 'keyup, blur', 
                 'rule': 'required'
-        });
+            });
+        }
         if(info.maxLength)
             field_validators.push({
                 'input': field[0], 
@@ -103,6 +114,8 @@ class MasterForm extends MasterWidget{
             });
         return field_validators;
     }
+
+    createCustomValidators(){}
 
 
     /**
@@ -229,9 +242,7 @@ class MasterModelForm extends MasterForm{
             var opts = copyKeys(info, FIELD_PROPS.list);
             opts.model = this.model.getRelation(info.bind).related_object.toLowerCase();
             opts.type = 'dropdown';
-            //new MasterModelList(field, opts);
-
-            new MasterWidgetInput(field, opts);
+            new MasterListInput(field, opts);
         }
     }
 

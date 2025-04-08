@@ -4,9 +4,13 @@ class MasterWidgetInput extends MasterWidget{
             'contentWidth': {'type': ['number', 'string'], 'name':'content_width', 'default': 300},
             'contentHeight': {'type': ['number', 'string'], 'name':'content_height', 'default': 200},
             'type': {'type': 'string', 'default': 'none'},
-            //'widget': {'type': 'function'},
+            'widgetClass': {'type': 'function', 'name':'widget_class'},
             ...patterns
         });
+    }
+
+    initTarget(target){
+        return super.initTarget(target, false);
     }
 
     init(attrs = {}){
@@ -18,8 +22,6 @@ class MasterWidgetInput extends MasterWidget{
     }
 
     renderDropDown(){
-        this.widget_target = this.target;
-        this.target = $('<div/>').appendTo(this.widget_target);
         this.widget_target.jqxDropDownButton({
             'theme': this.theme,
             'width':this.width,
@@ -27,14 +29,21 @@ class MasterWidgetInput extends MasterWidget{
             'dropDownWidth': this.content_width,
             'dropDownHeight': this.content_height
         });
-        
     }
 
     renderDialog(){
-
+        var title = $('<div/>', {'class': 'master-dialog'}).insertBefore(this.target);
+        this.widget_target.jqxWindow({
+            'theme': this.theme,
+            'width': this.content_width,
+            'height': this.content_height
+        });
     }
 
     render(){
+        this.widget_target = this.target;
+        this.target = $('<div/>').appendTo(this.widget_target);
+
         switch(this.type){
             case 'dropdown':
                 this.renderDropDown();
@@ -43,7 +52,6 @@ class MasterWidgetInput extends MasterWidget{
                 this.renderDialog();
                 break;
         }
-
         super.render();
 
         this.widget_target.data('masterWidget', this.target.data('masterWidget'));
@@ -62,11 +70,27 @@ class MasterWidgetInput extends MasterWidget{
     }
 
     set value(value){
-        this.__value = value;
+        this.widget.value = value;
     }
 
     get value(){
-        return this.__value || null;
+        return this.widget.value;
+    }
+
+    get jqx_width(){
+        return this.content_width;
+    }
+
+    get jqx_height(){
+        return this.content_height;
+    }
+
+
+    jqx(...args){
+        if(!this.widget){
+            this.widget = new this.widget_class(this.target, args[0]);
+        }
+        else this.widget.jqx(...args);
     }
 
     __setLabel(label){
@@ -76,7 +100,7 @@ class MasterWidgetInput extends MasterWidget{
         switch(this.type){
             case 'dropdown':
                 this.widget_target.jqxDropDownButton('setContent', 
-                    `<div style="margin-left: 3px;" class="dropdown-input">${label}</div>`);
+                    `<div style="margin-left: 3px;line-height:${this.widget_target.height()}px" class="dropdown-input">${label}</div>`);
                 break;
             case 'dialog':
                 break;

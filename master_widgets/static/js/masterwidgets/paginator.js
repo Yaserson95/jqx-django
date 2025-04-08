@@ -118,6 +118,8 @@ class MasterPaginator extends MasterToolbar{
     }
 
     get total_pages(){
+        if(this.count === 0)
+            return 1;
         return Math.ceil(this.count / this.page_size);
     }
 

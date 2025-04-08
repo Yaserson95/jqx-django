@@ -248,6 +248,12 @@ class MasterWidget{
 			throw e;
 		}
 
+		//Size polisy
+		this.target.css({
+			'width': this.width,
+			'height': this.height,
+		});
+
 		this.__loader = null;
 		this.attrs = {...this.attrs, ...options};
 	}
@@ -264,14 +270,12 @@ class MasterWidget{
 			throw new Error('Target element is not correct');
 
 		target.addClass('master-widget ' + camelToKebab(this.constructor.name));
-
 		//if this.theme
-		
 		if(create_jqx && !this.__jqx_widget)
 			this.__jqx_widget = this.initJQXTarget(target);
-
 		return target;
 	}
+
 	/**
 	 * Creates JQX-specific container element
 	 * @param {jQuery} target - Parent element
@@ -280,6 +284,7 @@ class MasterWidget{
 	initJQXTarget(target){
 		return $('<div/>', {'class':'master-jqx-widget'}).appendTo(target);
 	}
+
 	/**
      * Renders widget and applies theme settings
      */
@@ -544,6 +549,7 @@ class MasterModelLoader{
 			this.widget.loader(this.widget.model.initModelOptions()).then(()=>{
 				if(typeof this.widget.load === 'function')
 					this.widget.load();
+				this.widget.trigger('load');
 				original.apply(this.widget, []);
 			});
 		}

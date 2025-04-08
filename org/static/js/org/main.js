@@ -10,22 +10,28 @@
             'allowDrop': true
         });*/
 
-        var lst = new MasterList('#list', {
-            'source': Object.keys($.fn).map((item, i)=>({
-                'label': `${i + 1}. ${item}`,
-                'value': item.toUpperCase()
-            }))
-        });
-        
-        
-        /*var list = new MasterModelList('#object-choice', {
-            'model': 'product',
-            'pageSize': 10,
-            //'checkboxes':true,
-            'dropDown': true
-        });*/
+        const LOCAL_DATA = Object.keys($.fn).map((item, i)=>({
+            'label': `${i + 1}. ${item}`,
+            'value': item.toUpperCase()
+        }));
 
+        var local_lst = new MasterList('#list', {
+            'checkboxes': true,
+            'source': LOCAL_DATA
+        });
+        local_lst.value = ['EACH', 'SLICE'];
+        
+        var list = new MasterModelList('#object-list', {'model': 'product',});
         list.value = 1;
+
+        var dr_list = new MasterListInput('#object-choice', {'model': 'product', 'type': 'dropdown'});
+        dr_list.value = 5;
+
+        var dr_local_lst = new MasterListInput('#object-local', {
+            'source': LOCAL_DATA,
+            'type': 'dropdown'
+        });
+        dr_local_lst.value="PUSH";
 
         var form = new MasterModelForm('#simple-form', {
             'width': '100%',
