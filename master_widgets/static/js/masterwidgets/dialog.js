@@ -1,22 +1,54 @@
+const allowedWindowOptions = [
+    'width', 'height', 'title', 'position', 'draggable', 'resizable',
+    'modal', 'autoOpen', 'showCloseButton', 'initContent', 'theme',
+    'minWidth', 'maxWidth', 'minHeight', 'maxHeight', 'zIndex',
+    'cancelButton', 'closeButton', 'isModal',
+    'keyboardCloseKey', 'animationType', 'rtl', 'content',
+    'scrollBarSize', 'showCollapseButton', 'collapsed',
+    'enableSizeAnimation', 'animationDuration', 'showAnimationDuration',
+    'closeAnimationDuration', 'focus', 'disabled', 'selectionMode'
+];
+
 class MasterDialog extends MasterWidget{
     widgetOptionsPatterns(patterns={}){
 		return super.widgetOptionsPatterns({...patterns,...{
-			'buttons': {'type': 'array', 'default':[
-                {'label':'OK', 'name':'confirm'},
-                {'label':'Отмена', 'name':'cancel'}
+			'buttons': {'type': 'array', 'name':'buttons_template', 'default':[
+                {'label':'OK', 'name':'confirm', 'width': 70, 'height':30},
+                {'label':'Отмена', 'name':'cancel', 'width': 70, 'height':30}
             ]},
             'showButtons': {'type': 'boolean', 'name':'show_buttons', 'default': true},
             'title': {'type': 'string'},
-            'icon': {'type':'string', 'required': false}
+            'icon': {'type':'string', 'required': false},
+            'widgetClass': {'type': 'function', 'name':'widget_class'},
         }});
 	}
+
+    initTarget(target){
+        target = super.initTarget(target, false);
+        this.header = this.initHeader(target);
+        this.content = this.initContent(target);
+        return target;
+    }
+
+    initHeader(target){
+        var element = $('<p/>', {'class': 'dialog-header'}).appendTo(target);
+        var icon = $('<span/>', {'class': 'dialog-header-icon'}).hide().appendTo(element);
+        var title = $('<span/>', {'class': 'dialog-header-title'}).appendTo(element);
+        return {'element': element, 'icon':icon, 'title':title};
+    }
+
+    initContent(target){
+        var layout = $('<div/>', {'class': 'dialog-layout'}).appendTo(target);
+        var element = $('<div/>', {'class': 'dialog-content'}).appendTo(layout);
+        var footer = $('<div/>', {'class': 'dialog-footer'}).hide().appendTo(layout);
+        return {'element': element, 'layout':layout, 'footer':footer};
+    }
 
     init(options){
         this.jqx_type = 'jqxWindow';
         super.init(defaults(options, {
             'autoOpen': false,
             'isModal': true,
-            'resizable': false,
             'maxWidth': '90%',
             'maxHeight': '90%',
             'width': '70%',
@@ -26,67 +58,44 @@ class MasterDialog extends MasterWidget{
         }));
     }
 
-    renderHeader(){
-        this.header = {
-            'label': $('<span/>', {'class': 'header-label'}),
-            'base': $('<div/>', {'class': 'master-dialog-header'})
-        };
-        this.header.label
-            .appendTo(this.header.base)
-            .text(this.title);
-
-        if(this.icon){
-            this.header.icon = this.renderIcon(this.icon).prependTo(this.header.base);
-        }
-
-        return this.header.base;
-    }
-    renderLayout(){
-        this.layout = {
-            'base': $('<div/>', {'class': 'master-dialog-layout'}),
-            'content': $('<div/>', {'class': 'master-dialog-content'})
-        };
-        this.layout.base.append(this.layout.content);
-        if(this.show_buttons){
-            this.layout.buttons = $('<div/>', {'class': 'master-dialog-buttons'});
-            this.layout.base.append(this.layout.buttons);
-        }
-        return this.layout.base;
-    }
     renderIcon(name){
         return faicon(name).addClass('master-dialog-icon');
     }
-    renderContent(content){
-        /*content.jqxPanel({
+
+    renderContent(){
+        this.widget = new this.widget_class(this.content.element, {
+            ...this.attrs,
             'width': '100%',
-            'height': '100%',
-        });*/
+            'height': '100%'
+        });
         return this;
     }
 
     renderButtons(panel){
-        this.layout.buttons = new MasterToolbar(panel, {
+        var btns = new MasterToolbar(panel, {
             'parent': this,
-            'buttons': this.buttons,
+            'buttons': this.buttons_template,
             'rtl': true
         });
 
-        $(this.layout.buttons.getTool('confirm')).click((e)=>this.confirm(e));
-        $(this.layout.buttons.getTool('cancel')).click((e)=>this.cancel(e));
 
-        return this;
+        $(btns.getTool('confirm')).click((e)=>this.confirm(e));
+        $(btns.getTool('cancel')).click((e)=>this.cancel(e));
+
+        return btns;
     }
 
     render(){
-        this.target.append(
-            this.renderHeader(),
-            this.renderLayout()
-        ).addClass('master-dialog');
-        super.render();
-        this.renderContent(this.layout.content);
-        if(this.layout.buttons){
-            this.renderButtons(this.layout.buttons);
+        var wondows_opts = splitObject(this.attrs, allowedWindowOptions);
+        this.renderContent();
+
+        if(this.show_buttons){
+            this.content.footer.show();
+            this.buttons = this.renderButtons(this.content.footer);
         }
+
+        this.attrs = wondows_opts;
+        super.render();
     }
 
     open(){
@@ -97,39 +106,21 @@ class MasterDialog extends MasterWidget{
     }
 
     set title(text){
-        this.__title = text;
-        if(!this.target.data('masterWidget'))
-            return;
-        //Check header label
-        if(this.header.label.parent().length === 0)
-            this.header.label = this.header.base.find('.header-label');
-
-        //Update title
-        this.header.label.text(text);
+        this.header.title.text(text);
     }
 
     get title(){
-        return this.__title || null;
+        return this.header.title.text() || null;
     }
 
     set icon(icon){
-        this.__icon = icon;
-        if(!this.target.data('masterWidget'))
+        this.header.icon.html('');
+        if(!icon){
+            this.header.icon.hide();
             return;
+        }
+        this.header.icon.append(this.renderIcon(icon)).show();
 
-        if(this.header.icon !== undefined)
-            this.header.icon.remove();
-        
-        this.header.icon = this.renderIcon(this.icon).prependTo(this.header.base);
-    }
-    get icon(){
-        return this.__icon || null;
-    }
-
-    getMaxSize(){
-        var w = this.jqx('maxWidth');
-        var h = this.jqx('maxHeight');
-        return [w,h];
     }
     confirm(e){
 

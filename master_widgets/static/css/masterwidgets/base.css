@@ -19,29 +19,25 @@
     flex-direction: column;
 }
 
-.master-dialog .master-dialog-header{
-    width: 100% !important;
-    height:32px !important;
-    min-height:32px;
+.master-dialog .dialog-header{
+    line-height: 20px;
+    box-sizing: border-box;
+    margin: 0px;
+}
+
+.master-dialog .dialog-layout{
+    display: flex;
+    flex-direction: column;
+}
+
+.master-dialog .dialog-content{
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
     box-sizing: border-box;
 }
 
-.master-dialog .master-dialog-layout{
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
-    width: 100% !important;
-    height: 100% !important;
-}
-.master-dialog .master-dialog-content{
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-}
-.master-dialog .master-dialog-buttons{
+.master-dialog .dialog-footer{
     margin-top: 5px;
-    min-height:40px;
-    height:40px;
 }
 
 .jqx-validator-error-label{
@@ -112,8 +108,15 @@
     flex-direction: column;
  }
 
+.master-toolbar .jqx-toolbar-tool{
+    text-align: center;
+}
 
-.master-toolbar{
+.master-toolbar .jqx-toolbar-tool.jqx-rtl{
+    text-align: center !important;
+}
+
+/*.master-toolbar{
     display: flex;
     flex-direction: row;
 }
@@ -128,7 +131,7 @@
 
 .master-toolbar input.jqx-toolbar-tool{
     margin-bottom: 0px !important;
-}
+}*/
 
 
 .master-paginator {
@@ -156,13 +159,10 @@
     text-overflow: ellipsis;
 }
 
-.master-form{
+.master-form,
+.master-model-form{
     overflow-y: auto;
-}
-
-.master-form > .jqx-widget table{
-    border: none !important;
-    border-radius: 0px;
+    background-color: #F5F5F5;
 }
 
 .master-list{

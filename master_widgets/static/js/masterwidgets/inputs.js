@@ -16,7 +16,7 @@ class MasterWidgetInput extends MasterWidget{
     init(attrs = {}){
         defaults(attrs, {
             'width': 150,
-            'height': 30
+            'height': 30,
         });
         super.init(attrs);
     }
@@ -27,7 +27,8 @@ class MasterWidgetInput extends MasterWidget{
             'width':this.width,
             'height': this.height,
             'dropDownWidth': this.content_width,
-            'dropDownHeight': this.content_height
+            'dropDownHeight': this.content_height,
+            'popupZIndex': 10000
         });
     }
 

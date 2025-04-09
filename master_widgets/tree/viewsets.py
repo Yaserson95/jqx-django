@@ -5,6 +5,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.decorators import action
+import re
 
 from ..exceptions import ValidateOptionsException
 from rest_framework.exceptions import ValidationError
@@ -22,10 +23,20 @@ CHILDREN_TYPE_PATTERNS = {
     'extra': {'type':dict, 'required': False},
 }
 
+
 class TreeItemsData:
     data: list
     def __init__(self, data:list):
         self.data = data
+
+class MasterTree:
+    template: list
+
+    def __init__(self, template: list):
+        self.template = template
+
+
+
 
 class MasterTreeViewSet(ModelViewSet):
     children_nodes: list

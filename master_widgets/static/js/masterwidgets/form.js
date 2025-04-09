@@ -1,7 +1,7 @@
 const IGNORED_TYPES = ['blank', 'button'];
 const FIELD_TYPES = [
     'text', 'option', 'blank', 'button', 'color', 
-    'number', 'boolean', 'password', 'label', 'time', 'date', 'datetime'
+    'boolean', 'password', 'label', 'time', 'date', 'datetime'
 ];
 const FIELD_PROPS = {
     'textarea':[
@@ -15,6 +15,47 @@ const FIELD_PROPS = {
         'allowDrag', 'allowDrop', 'scrollBarSize', 'renderer'
     ],
     'text':["placeHolder", "minLength", "maxLength"]
+};
+
+const BASE_VALIDATORS = {
+    'required': (info)=>{
+        return {
+            'message': 'Заполните поле', 
+            'action': 'keyup, blur', 
+            'rule': 'required'
+        };
+    },
+    'maxLength': (info)=>{
+        return {
+            'message': `Поле должно содержать меньше ${info.maxLength} символов`, 
+            'action': 'keyup, blur', 
+            'rule': `maxLength=${info.maxLength}`
+        }
+    },
+    'minLength': (info)=>{
+        return {
+            'message': `Поле должно содержать минимум ${info.minLength} символов`, 
+            'action': 'keyup, blur', 
+            'rule': `minLength=${info.minLength}`
+        }
+    }
+};
+
+const CUSTOM_VALIDATORS = {
+    'field': (field, info, validators) => {
+        if(info.required){
+            validators.push({
+                'input': field[0],
+                'message': 'Выбирите объект', 
+                'action': 'keyup, blur', 
+                'rule': function(input, commit){
+                    var widget = (input).data('masterWidget');
+                    if(!widget) return true;
+                    return widget.value !== null;
+                }
+            });
+        }
+    }
 };
 
 class MasterForm extends MasterWidget{
@@ -41,6 +82,8 @@ class MasterForm extends MasterWidget{
     }
 
     render(){
+        this.attrs.backgroundColor = 'inital';
+        this.attrs.borderColor = 'inital';
         super.render();
         this.updateFields();
         var submit = this.jqx('getComponentByName', 'submit');
@@ -49,6 +92,19 @@ class MasterForm extends MasterWidget{
                 this.validate();
             });
         }
+
+        this.notification = $('<div/>', {'class':'form-notification'})
+            .appendTo(this.target)
+            .jqxNotification({ 
+                'width': "auto", 
+                'position': "top-right", 
+                'opacity': 0.9,
+                'closeOnClick': true, 
+                'autoClose': false, 
+                'showCloseButton': true, 
+                'template': "mail", 
+                'blink': true
+            });
     }
     updateFields(){
         var validators = [];
@@ -69,6 +125,15 @@ class MasterForm extends MasterWidget{
         return this.target.jqxValidator('validate');
     }
 
+    save(){
+        this.jqx('submit');
+    }
+
+    submit(){
+        if(this.validate())
+            this.save();
+    }
+
     initField(field, info){
         if(info.type === 'textarea'){
             defaults(info, {'height': 120, 'theme': this.theme});
@@ -82,40 +147,35 @@ class MasterForm extends MasterWidget{
             case 'jqxInput':
                 field.jqxInput(copyKeys(info, FIELD_PROPS.text));
                 break;
+            case 'jqxNumberInput':
+                field.jqxNumberInput({
+                    'decimalSeparator': ',',
+                    'allowNull': true,
+                    'decimalDigits': info.decimal_places,
+                    'digits': info.max_digits,
+                });
+                break;
+
+            case 'jqxDateTimeInput':
+                field.val(new Date());
+                break;
         }
     }
 
     createValidators(field, info, field_validators = []){
-        if(MasterForm.isCustomType(field.type)){
-            
+        if(!MasterForm.isCustomType(info.type)){
+            for(var f_name in BASE_VALIDATORS){
+                if(info[f_name]){
+                    var validator = BASE_VALIDATORS[f_name](info);
+                    validator.input = field[0];
+                    field_validators.push(validator);
+                }
+            }
         }
-        if(info.required){
-            field_validators.push({
-                'input': field[0], 
-                'message': 'Заполните поле', 
-                'action': 'keyup, blur', 
-                'rule': 'required'
-            });
-        }
-        if(info.maxLength)
-            field_validators.push({
-                'input': field[0], 
-                'message': `Поле должно содержать меньше ${info.maxLength} символов`, 
-                'action': 'keyup, blur', 
-                'rule': `maxLength=${info.maxLength}`
-            });
-
-        if(info.minLength)
-            field_validators.push({
-                'input': field[0], 
-                'message': `Поле должно содержать минимум ${info.minLength} символов`, 
-                'action': 'keyup, blur', 
-                'rule': `minLength=${info.minLength}`
-            });
+        if(CUSTOM_VALIDATORS[info.type])
+                CUSTOM_VALIDATORS[info.type](field, info, field_validators);
         return field_validators;
     }
-
-    createCustomValidators(){}
 
 
     /**
@@ -139,6 +199,10 @@ class MasterForm extends MasterWidget{
         if(IGNORED_TYPES.indexOf(item.type)===-1)
             this.__fields_info.push(item);
         return item;
+    }
+    message(text){
+        this.notification.text(text);
+        this.notification.jqxNotification('open');
     }
 
     set template(template){
@@ -259,4 +323,31 @@ class MasterModelForm extends MasterForm{
     get id(){
         return this.__id || null;
     }
+    save(){
+        if(!this.validate()) return;
+        var form_data = this.jqx_target.val();
+        if(!this.__id){
+            this.loader(this.model.create(form_data)).then((data=>{
+                this.__id = data[this.model.id];
+                console.log(data);
+            }));
+        }else{
+            this.loader(this.model.update(this.__id, form_data)).then((data=>{
+                console.log(data);
+            }));
+        }
+    }
 };
+
+class MasterFormDialog extends MasterDialog{
+    init(attrs = {}){
+        if(attrs.model)
+            attrs.widgetClass = MasterModelForm;
+        else attrs.widgetClass = MasterForm;
+        super.init(attrs);
+    }
+
+    confirm(){
+        this.widget.submit();
+    }
+}

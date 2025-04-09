@@ -208,6 +208,17 @@ class MasterWidget{
 	static get theme(){
 		return this.__theme || 'base';
 	}
+
+	static addStyleClasses(target, obj){
+		if(!obj instanceof this)
+			return;
+
+		var prot = obj.constructor;
+		do{
+            target.addClass(camelToKebab(prot.name));
+            prot = Object.getPrototypeOf(prot);
+        }while(prot && prot !== this);
+	}
 	/**
      * Initializes widget instance
      * @param {jQuery} target - Container element for the widget
@@ -218,6 +229,7 @@ class MasterWidget{
 		this.init(options);
 		if(this.autorender)	this.render();
 	}
+
 	/**
      * Defines option validation patterns including base patterns
      * @param {Object} [patterns={}] - Additional patterns to merge
@@ -269,7 +281,8 @@ class MasterWidget{
 		if(target.length === 0)
 			throw new Error('Target element is not correct');
 
-		target.addClass('master-widget ' + camelToKebab(this.constructor.name));
+		MasterWidget.addStyleClasses(target, this);
+		//target.addClass('master-widget ' + camelToKebab(this.constructor.name));
 		//if this.theme
 		if(create_jqx && !this.__jqx_widget)
 			this.__jqx_widget = this.initJQXTarget(target);

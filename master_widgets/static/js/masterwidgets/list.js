@@ -238,7 +238,6 @@ class MasterModelList extends BaseMasterList{
 
     init(attrs={}){
         this.__count = 0;
-        this.target.addClass('master-list');
         new MasterModelLoader(this);
         super.init(attrs);
     }
@@ -322,7 +321,9 @@ class MasterModelList extends BaseMasterList{
 
 class MasterListInput extends MasterWidgetInput{
     init(attrs = {}){
-        defaults(attrs, {'contentHeight': 300});
+        defaults(attrs, {
+            'contentHeight': 300,
+        });
         if(attrs.model)
             attrs.widgetClass = MasterModelList;
         else if(attrs.source)
@@ -356,5 +357,9 @@ class MasterListInput extends MasterWidgetInput{
     set value(value){
         this.widget.value = value;
         this.__initLabel = false;
+    }
+
+    get value(){
+        return this.widget.value;
     }
 }

@@ -32,11 +32,13 @@
             'type': 'dropdown'
         });
         dr_local_lst.value="PUSH";
+        
 
-        var form = new MasterModelForm('#simple-form', {
+        var form_dialog = new MasterFormDialog('#simple-form', {
+            'title': 'Форма заполнения объекта БД',
             'width': '100%',
             'model': 'product',
-            'template':[
+            /*'template':[
                 {
                     type: 'blank',
                     rowHeight: '10px'
@@ -46,26 +48,31 @@
                         {
                             type: 'button',
                             name: 'submit',
-                            text: 'Sign up',
+                            text: 'Submit',
                             width: '90px',
                             height: '30px',
                             rowHeight: '40px',
                             columnWidth: '50%',
                             align: 'right'
-                        },
-                        {
-                            type: 'button',
-                            text: 'Cancel',
-                            width: '90px',
-                            height: '30px',
-                            rowHeight: '40px',
-                            columnWidth: '50%'
-                        }                
+                        },         
                     ]
                 }
-            ]
+            ]*/
         });
 
-        form.id = 2;
+        $('#simple-form-btn').click(()=>{
+            form_dialog.open();
+        });
+        
+
+        /*while(prot){
+            console.log(prot);
+            prot = prot.prototype;
+            
+        }*/
+
+        //console.log(form_dialog.constructor);
+
+        //form.id = 2;
     });
 });
