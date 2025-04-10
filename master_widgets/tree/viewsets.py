@@ -1,22 +1,17 @@
-from django.db.models import QuerySet, Value, F, OuterRef, Exists, Case, When, Expression
+from django.db.models import QuerySet, Value, F, OuterRef, Exists, Case, When
+from django.db.models.expressions import Combinable
+from django.db.models.functions import Concat
 from django.http.response import Http404
-from django.core.exceptions import ValidationError as DValidationError
-from rest_framework.viewsets import ModelViewSet
-from rest_framework.response import Response
-from rest_framework.request import Request
-from rest_framework.decorators import action
+from rest_framework.viewsets import ReadOnlyModelViewSet
 import re
 
-from ..exceptions import ValidateOptionsException
-from rest_framework.exceptions import ValidationError
-
-from ..helpers import model_field_exists, expr, validate_options
-from ..form_templates import from_model
+from ..helpers import model_field_exists
+from .serializers import TreeSerializer
 
 CHILDREN_TYPE_PATTERNS = {
     'queryset': {'type': QuerySet,},
-    'value': {'type': (str, Expression,), 'default': 'pk'},
-    'label': {'type': (str, Expression,), },
+    'value': {'type': (str, Combinable,), 'default': 'pk'},
+    'label': {'type': (str, Combinable,), },
     'parent': {'type': str, 'default': 'parent'},
     'name': {'type': str, 'required': False},
     'verbose_name': {'type': str, 'required': False},
@@ -24,116 +19,61 @@ CHILDREN_TYPE_PATTERNS = {
 }
 
 
+ITEM_REGEX = r'\{\{\s*(?P<val>\w+)\s*\}\}'
+
 class TreeItemsData:
     data: list
     def __init__(self, data:list):
         self.data = data
 
-class MasterTree:
+class MasterTreeViewSet(ReadOnlyModelViewSet):
     template: list
-
-    def __init__(self, template: list):
-        self.template = template
-
-
-
-
-class MasterTreeViewSet(ModelViewSet):
-    children_nodes: list
-
-    parent_lookup: str = 'parent'
-    parent_field: str = 'parent'
-    pqrent_node: object
-
-    label_field: str
-    value_field: str = F('id')
-
-    extra_item: dict|None = None
-
-    class Meta:
-        abstract = True
-
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if hasattr(self, 'children_nodes'):
-            self.validate_children_nodes()
-
-    def filter_queryset(self, qs: QuerySet):
-        item_type = int(self.request.GET.get('item_type', 0))
-
-        try:
-            if self.action == 'list':
-                qs = self.list_queryset(qs, self.get_parent())
-            elif item_type > 0 and hasattr(self, 'children_nodes'):
-                qs = self.children_nodes[item_type - 1]['queryset']
-        except IndexError:
-            raise Http404('Item type not found')
-
-        return super().filter_queryset(qs)
+    main_type: int = 0
+    default_parent = None
+    parent_lookup = 'parent'
+    serializer_class = TreeSerializer
+    search_fields = ['label']
+    queryset = None
+    _parent_obj = None
     
-    def list_queryset(self, qs:QuerySet, parent=None):
-        excludes = self.get_excludes()
-        qs = qs.filter(**{self.parent_field: parent})     
-        qs = self.update_queryset(qs, 
-            value_field=getattr(self, 'value_field'), 
-            label_field=getattr(self, 'label_field'),
-            has_items=self.has_items_queryset()
-        )
 
-        if 0 in excludes:
-            qs = qs.exclude(pk__in=excludes[0])
+    def get_queryset(self):        
+        if self.queryset: return self.queryset
+        querysets = []
+        for item in self.template:
+            value_expr = item.get('value', None)
+            if value_expr is None:
+                value_expr = F('pk')
+            querysets.append({
+                'qs': item['queryset'],
+                'label_expr': MasterTreeViewSet.get_item_expression(item['label']),
+                'value_expr': MasterTreeViewSet.get_item_expression(value_expr),
+                'parent_expr': F(item.get('parent', 'parent'))
+            })
+        return querysets
 
-        if not hasattr(self, 'children_nodes') or parent is None:
-            return qs
-        
-        qs = qs.order_by()
-        for i in range(0, len(self.children_nodes)):
-            clild_qs = self.get_childeren_queryset(i, parent).order_by()
-            if i + 1 in excludes:
-                clild_qs = clild_qs.exclude(pk__in=excludes[i + 1])
-            qs = qs.union(clild_qs)
+    def filter_queryset(self, querysets: list[QuerySet]):
+        qs:QuerySet|None = None
+        parent = self.get_parent()
+        self.is_serach = bool(self.request.GET.get('search', None))
 
-        return qs
-    
-    def has_items_queryset(self):
-        cases = [
-            When(Exists(self.get_queryset().filter(**{self.parent_field:OuterRef('pk')})), then=1)
-        ]
+        if self.action != 'list':
+            item_type = int(self.request.GET.get('type', self.main_type))
+            self.queryset = querysets[item_type]['qs']
+            return self.queryset
 
-        if(hasattr(self, 'children_nodes')):
-            for item in self.children_nodes:
-                parent_field = item.get('parent')
-                cld_qs = Exists(item.get('queryset').filter(**{parent_field:OuterRef('pk')}))
-                cases.append(When(cld_qs, then=1))
-        return Case(*cases, default=0)
-    
-    def get_childeren_queryset(self, index: int, parent = None)->QuerySet:
-        node = self.children_nodes[index]
-        
-        return self.update_queryset(
-            qs = node['queryset'], 
-            value_field = node['value'], 
-            label_field = node['label'],
-            parent_field = node['parent'], 
-            index = index + 1
-        ).filter(parent=parent.pk)
-        
-    def update_queryset(self, qs:QuerySet, value_field:str, label_field:str, parent_field: str = 'parent', has_items=Value(False), index:int=0):
-        if value_field is None or label_field is None:
-            raise Exception('Parametres "value_field" or "label_field" is not defined')
+        if parent is None and not self.is_serach:
+            qs = self.get_item_queryset(querysets[self.main_type], self.main_type, parent)
+        else:
+            for i, item in enumerate(querysets):
+                item_qs = self.get_item_queryset(item, i, parent)
+                if qs is not None:
+                    qs = qs.union(item_qs)
+                else: qs = item_qs
 
-        annotations = {
-            'label': expr(label_field),
-            'value': expr(value_field),
-            'parent': expr(parent_field),
-            'item_type': Value(index),
-            'has_items':has_items
-        }
-
-        # Добавляем аннотации только для тех полей, которых нет в модели
-        annotations_to_add = {k: v for k, v in annotations.items() if not model_field_exists(qs.model, k)}
-        return qs.annotate(**annotations_to_add).values(*annotations.keys())
+        self.queryset = self.apply_backend_filter('OrderingFilter', qs)
+        self.filter_backends = []
+        return self.queryset
     
     def get_serializer(self, *args, **kwargs):
         if self.action == 'list':
@@ -141,118 +81,111 @@ class MasterTreeViewSet(ModelViewSet):
         return super().get_serializer(*args, **kwargs)
     
     def get_serializer_class(self):
-        item_type = int(self.request.GET.get('item_type', 0))
-        if hasattr(self, 'children_nodes') and item_type > 0:
-            try:
-                return self.children_nodes[item_type - 1]['serializer']
-            except:
-                raise Http404
-            
-        return super().get_serializer_class()
+        item_type = int(self.request.GET.get('type', self.main_type))
+        try:
+            return self.template[item_type]['serializer']
+        except:
+            raise Http404
     
-    def list(self, request:Request, *args, **kwargs)->Response:
-        responce = super().list(request, *args, **kwargs)
-        responce.data['item_id'] = self.request.GET.get('item_id', None)
+    def get_item_queryset(self, qs_item:dict, obj_type:int, parent)->QuerySet:
+        if obj_type == self.main_type:
+            has_items = self.has_items_queryset()
+        else:
+            has_items = Value(False)
+
+        annotations = {
+            'label': qs_item['label_expr'],
+            'value': qs_item['value_expr'],
+            'parent': qs_item['parent_expr'],
+            'has_items': has_items,
+            'type': Value(obj_type),
+        }
+        annotations_to_add = {k: v for k, v in annotations.items() if not model_field_exists(qs_item['qs'].model, k)}
+        qs:QuerySet = qs_item['qs']\
+            .annotate(**annotations_to_add)
+        
+        if not self.is_serach:
+            qs = qs.filter(**{self.template[obj_type].get('parent', 'parent'): parent})
+        
+        qs = self.apply_backend_filters(qs, ['OrderingFilter'])
+        return qs.values(*annotations.keys()).order_by()
+
+    def apply_backend_filter(self, name: str, qs: QuerySet)->QuerySet:
+        for flt in self.filter_backends:
+            if flt.__name__ == name:
+                qs = flt().filter_queryset(self.request, qs, self)
+                break
+        return qs
+    
+    def apply_backend_filters(self, qs:QuerySet, ignored:list=[])->QuerySet:
+        for flt in self.filter_backends:
+            if flt.__name__ in ignored:
+                continue
+            qs = flt().filter_queryset(self.request, qs, self)
+        return qs
+    
+    def get_parent(self):
+        parent_id = self.request.GET.get(self.parent_lookup, self.default_parent)
+        qs:QuerySet = self.template[self.main_type]['queryset']
+
+        if parent_id is None:  return None
+        if self._parent_obj is None:
+            try:
+                self._parent_obj = qs.get(pk=parent_id)        
+            except qs.model.DoesNotExists:
+                raise Http404
+        return self._parent_obj
+    
+    def has_items_queryset(self):
+        cases = []
+        for item in self.template:
+            parent_field = item.get('parent', 'parent')
+            cld_expr = Exists(item.get('queryset').filter(**{parent_field:OuterRef('pk')}))
+            cases.append(When(cld_expr, then=True))
+        return Case(*cases, default=False)
+    
+    def options(self, request, *args, **kwargs):
+        responce = super().options(request, *args, **kwargs)
+        responce.data['items'] = [self.get_model_info(item, i) for i, item in enumerate(self.template)]
         return responce
     
-    @action(['GET', 'OPTION'], False, 'form/(?P<type>[0-9]+)', 'tree_form_info')
-    def form(self, request:Request, *args, **kwargs)->Response:
-        form_type = int(kwargs.get('type', 0))
-        try:
-            if form_type == 0:
-                template = from_model(self.get_queryset().model)
-            else:
-                template = from_model(self.children_nodes[form_type - 1]['queryset'].model)
-        except IndexError:
-            raise Http404
-        return Response({'template':template})
-    
-    @action(['GET', 'OPTION'], False, 'config', 'tree_fors')
-    def config(self, request:Request, *args, **kwargs)->Response:
-        forms = self.get_item_types()
-        return Response({
-            'itemTypes':forms,
-            'itemsMenu': True,
-        })
-    
-    def get_item_types(self):
-        types = [self.get_model_info(self.get_queryset().model, 0, self.extra_item)]
-        if not hasattr(self, 'children_nodes'):
-            return types
-        
-        for i, e in enumerate(self.children_nodes):
-            node = self.get_model_info(e['queryset'].model, i+1, e.get('extra', None))
+    def get_model_info(self, item:list, item_type:int):
+        model = item['queryset'].model
 
-            for key in ['name', 'plural_name']:
-                if key in e: node[key] = e[key]
-                
-            types.append(node)
-
-        return types
-    
-    def get_model_info(self, model, index:int=0, extra:dict|None = None):
         info = {
             'className': model.__name__,
-            'type': index,
+            'type': item_type,
             'name': model._meta.verbose_name,
             'plural_name': model._meta.verbose_name_plural,
-            'rules': self.get_object_rules(index),
-            'parent': self.get_parent_field(index),
+            'parent': item.get('parent', 'parent'),
             'id': model._meta.pk.name
         }
 
-        if extra is not None:
-            extra.update(info)
-            return extra
+        if item['extra'] is not None:
+            item['extra'].update(info)
+            return item['extra']
         return info
-    
-    def get_object_rules(self, item_type=0):
-        if item_type == 0:
-            return [True, True, True]
-        return [False, True, True]
-    
-    def get_parent_field(self, index:int):
-        if index == 0:
-            return self.parent_field
-        return self.children_nodes[index - 1]['parent']
-    
-    def get_parent(self):
-        if hasattr(self, 'pqrent_node'):
-            return self.pqrent_node
-        
-        parent_id = self.request.GET.get(self.parent_lookup, None)
-        if parent_id is None:
-            return None
-        try:
-            self.pqrent_node = self.queryset.get(pk=parent_id)
-            return self.pqrent_node
-        except self.queryset.model.DoesNotExists:
-            raise Http404
-        
-    def validate_children_nodes(self):
-        try:
-            for i, e in enumerate(self.children_nodes):
-                validate_options(e, CHILDREN_TYPE_PATTERNS)
-        except ValidateOptionsException as e:
-            raise ValidateOptionsException('In %d children node: %s' % (i, e.args[0]))
-        
-    def perform_update(self, serializer):
-        try:
-            return super().perform_update(serializer)
-        except DValidationError as e:
-            raise ValidationError({e.params['name']: [e.message,]})
-        
-    def get_excludes(self)->dict:
-        r = self.request.GET.get('exclude', None)
-        excludes = {}
 
-        if r is None:
-            return {}
-
-        for item in r.split(';'):
-            e = item.split(',')
-            key = int(e[0])
-            if key not in excludes:
-                excludes[key] = []
-            excludes[key].append(int(e[1]))
-        return excludes
+    @classmethod
+    def get_item_template(cls, labet_template:str)->list:
+        return re.split(ITEM_REGEX, labet_template)
+    
+    @classmethod
+    def template2expression(cls, template:list)->str:
+        args = []
+        for i, s in enumerate(template):
+            if i%2 !=0: args.append(F(s))
+            else: args.append(Value(s))
+        
+        if len(args) == 1: return args[0]
+        return Concat(*args)
+    
+    @classmethod
+    def get_item_expression(cls, template:str|Combinable)->Combinable:
+        if(isinstance(template, Combinable)):
+            return template
+        
+        return cls.template2expression(cls.get_item_template(template))
+    
+    class Meta:
+        abstract = True

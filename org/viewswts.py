@@ -7,6 +7,23 @@ from .models import Department, Employee
 from .serializers import DepartmentSerializer, EmployeeSerializer
 
 class OrgStructureViewSet(MasterTreeViewSet):
+    template = [
+        {
+            'queryset':Department.objects.all(),
+            'label': F('name'),
+            'serializer': DepartmentSerializer,
+            'extra':{'icon': 'folder'},
+        },
+        {
+            'queryset':Employee.objects.all(), 
+            'label': '{{last_name}} {{first_name}} {{middle_name}}, {{position}}',
+            'serializer': EmployeeSerializer,
+            'parent': 'department',
+            'extra':{'icon': 'user'},
+        }
+    ]
+
+    '''
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     label_field = 'name'
@@ -26,3 +43,4 @@ class OrgStructureViewSet(MasterTreeViewSet):
             'extra':{'icon':'user', },
         }
     ]
+    '''

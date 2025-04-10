@@ -3,11 +3,11 @@ from rest_framework import serializers as rfs
 class TreeSerializer(rfs.Serializer):
     label = rfs.CharField()
     value = rfs.IntegerField()
-    parent = rfs.IntegerField()
-    item_type = rfs.IntegerField()
+    #parent = rfs.IntegerField()
+    type = rfs.IntegerField()
+    has_items=rfs.BooleanField()
 
-    def validate(self, attrs):
-        return super().validate(attrs)
+
     
 class TreeItemsMixin:
     class Meta:

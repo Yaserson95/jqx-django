@@ -3,6 +3,7 @@ from django.db import models
 from django.forms import ValidationError
 from rest_framework.serializers import BaseSerializer
 from .exceptions import ValidateOptionsException
+import re
 
 FIELD_FILTERS = [
     ((models.IntegerField, models.DecimalField, models.DateTimeField, models.DateField), ["gt", "gte", "lt", "lte"],),
@@ -61,3 +62,26 @@ def get_field_filters(field: models.Field)->list:
             return field_filters + field_opt[1]
     
     return field_filters
+
+def camel_to_kebab(s: str) -> str:
+    """
+    Преобразует строку из CamelCase в kebab-case
+    Пример: 'HelloWorld' → 'hello-world'
+    """
+    return re.sub(
+        r'(?<!^)(?=[A-Z])', 
+        '-', 
+        re.sub(r'([A-Z]+)', r'\1', s)
+    ).lower()
+
+# Альтернативный вариант с обработкой цифр и аббревиатур
+def camel_to_kebab_advanced(s: str) -> str:
+    """
+    Улучшенная версия с учетом чисел и последовательных заглавных букв
+    Пример: 'HTTP2Server' → 'http2-server'
+    """
+    return re.sub(
+        r'([a-z0-9])([A-Z])|([A-Z])(?=[A-Z][a-z])',
+        lambda m: f'{m.group(1) or m.group(3)}-',
+        s
+    ).lower()
