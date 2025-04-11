@@ -153,7 +153,7 @@ class MasterTreeViewSet(ReadOnlyModelViewSet):
         model = item['queryset'].model
 
         info = {
-            'className': model.__name__,
+            'class_name': model.__name__,
             'type': item_type,
             'name': model._meta.verbose_name,
             'plural_name': model._meta.verbose_name_plural,
@@ -165,6 +165,11 @@ class MasterTreeViewSet(ReadOnlyModelViewSet):
             item['extra'].update(info)
             return item['extra']
         return info
+    
+    def list(self, request, *args, **kwargs):
+        responce = super().list(request, *args, **kwargs)
+        responce.data['node'] = self.request.GET.get('node', None)
+        return responce
 
     @classmethod
     def get_item_template(cls, labet_template:str)->list:

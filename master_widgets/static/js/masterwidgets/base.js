@@ -304,6 +304,7 @@ class MasterWidget{
 	render(){
 		this.jqx(this.getWidgetOptions());
 		this.target.data('masterWidget', this);
+		this.trigger('ready');
 	}
 	getWidgetOptions(){
 		return {

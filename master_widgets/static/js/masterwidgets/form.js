@@ -62,6 +62,11 @@ class MasterForm extends MasterWidget{
     static isCustomType(type){
         return FIELD_TYPES.indexOf(type) === -1;
     }
+
+    static getDefaultDateTime(){
+        return new Date();
+    }
+
     widgetOptionsPatterns(patterns={}){
 		return super.widgetOptionsPatterns({
             ...patterns,
@@ -86,6 +91,7 @@ class MasterForm extends MasterWidget{
         this.attrs.borderColor = 'inital';
         super.render();
         this.updateFields();
+        this.clear();
         var submit = this.jqx('getComponentByName', 'submit');
         if(submit){
             submit.click(()=>{
@@ -155,10 +161,6 @@ class MasterForm extends MasterWidget{
                     'digits': info.max_digits,
                 });
                 break;
-
-            case 'jqxDateTimeInput':
-                field.val(new Date());
-                break;
         }
     }
 
@@ -198,11 +200,37 @@ class MasterForm extends MasterWidget{
         if(!item.name) item.name = item.bind;
         if(IGNORED_TYPES.indexOf(item.type)===-1)
             this.__fields_info.push(item);
+
+        //Init default values
+        if(item.default === undefined){
+            switch(item.type){
+                case 'time':
+                case 'date': 
+                case 'datetime':
+                    item.default = MasterForm.getDefaultDateTime;
+                    break;
+                case 'checkbox':
+                    item.default = true;
+                    break;
+                default:
+                    item.default = null;
+                    break;
+            }
+        }
         return item;
     }
     message(text){
         this.notification.text(text);
         this.notification.jqxNotification('open');
+    }
+
+    clear(){
+        for(var i in this.__fields_info){
+            var info = this.__fields_info[i];
+            var field = this.jqx('getComponentByName', info.name);
+            var default_val = (typeof info.default === 'function')? info.default(): info.default;
+            field.val(default_val);
+        }
     }
 
     set template(template){
@@ -218,6 +246,23 @@ class MasterForm extends MasterWidget{
      */
     get template(){
         return this.__template || null;
+    }
+
+    set value(value){
+        this.jqx_target.val(value);
+    }
+
+    get value(){
+        return this.jqx_target.val();
+    }
+
+    get fields(){
+        var fields = {};
+        for(var i in this.__fields_info){
+            var info = this.__fields_info[i];
+            fields[info.name] = this.jqx('getComponentByName', info.name);
+        }
+        return fields;
     }
 }
 
@@ -237,7 +282,6 @@ class MasterModelForm extends MasterForm{
             'bind': name,
             'name': name
         };
-
         switch (element.type) {
             case 'string':
                 element.type = MasterModelForm.detectStringType(element);
@@ -312,10 +356,10 @@ class MasterModelForm extends MasterForm{
 
     set id(id){
         this.__id = id;
-        if(!this.target.data('masterWidget'))
-            return;
+        if(!this.target.data('masterWidget')) return;
+        this.clear();
+        if(id===null||id===undefined||id==='') return;
         this.loader(this.model.retrieve(id)).then(value => {
-            console.log(value);
             this.jqx_target.val(value);
         });
     }
@@ -329,11 +373,11 @@ class MasterModelForm extends MasterForm{
         if(!this.__id){
             this.loader(this.model.create(form_data)).then((data=>{
                 this.__id = data[this.model.id];
-                console.log(data);
+                this.trigger('save').trigger('create');
             }));
         }else{
             this.loader(this.model.update(this.__id, form_data)).then((data=>{
-                console.log(data);
+                this.trigger('save').trigger('update');
             }));
         }
     }
@@ -346,8 +390,29 @@ class MasterFormDialog extends MasterDialog{
         else attrs.widgetClass = MasterForm;
         super.init(attrs);
     }
+    renderContent(){
+        super.renderContent();
+        this.on({
+            'close': ()=>{this.__closeDrodDowns()},
+            'click': (e)=>{
+                //this.__closeDrodDowns($(e.target));
+            }
+        });
+    }
 
     confirm(){
         this.widget.submit();
+    }
+
+    __closeDrodDowns(target=null){
+        var fields = this.widget.fields;
+        for(var i in fields){
+            var fld = fields[i];
+            var data = fld.data('jqxWidget');            
+            if(!data) continue;
+            if(data.widgetName === 'jqxDropDownButton'){
+                fld.jqxDropDownButton('close');
+            }
+        }
     }
 }

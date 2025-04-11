@@ -77,11 +77,9 @@ class MasterDialog extends MasterWidget{
             'buttons': this.buttons_template,
             'rtl': true
         });
-
-
+        
         $(btns.getTool('confirm')).click((e)=>this.confirm(e));
         $(btns.getTool('cancel')).click((e)=>this.cancel(e));
-
         return btns;
     }
 
@@ -96,6 +94,9 @@ class MasterDialog extends MasterWidget{
 
         this.attrs = wondows_opts;
         super.render();
+
+        this.header.title = this.header.element.find('.dialog-header-title');
+        this.header.icon = this.header.element.find('.dialog-header-icon');
     }
 
     open(){
@@ -122,9 +123,7 @@ class MasterDialog extends MasterWidget{
         this.header.icon.append(this.renderIcon(icon)).show();
 
     }
-    confirm(e){
-
-    }
+    confirm(e){}
     cancel(e){
         this.jqx('close');
     }

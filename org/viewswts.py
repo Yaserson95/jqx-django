@@ -2,8 +2,9 @@ from master_widgets.tree import MasterTreeViewSet
 from django.db.models.functions import Concat
 from django.db.models import F, Value
 from rest_framework.filters import OrderingFilter
+from master_widgets.api import registry
 
-from .models import Department, Employee
+from .models import Department, Employee, WorkGroup
 from .serializers import DepartmentSerializer, EmployeeSerializer
 
 class OrgStructureViewSet(MasterTreeViewSet):
@@ -23,24 +24,6 @@ class OrgStructureViewSet(MasterTreeViewSet):
         }
     ]
 
-    '''
-    queryset = Department.objects.all()
-    serializer_class = DepartmentSerializer
-    label_field = 'name'
-    filter_backends = [OrderingFilter]
-    search_fields = ['label']
-    ordering_fields = ['item_type', 'label']
-
-    extra_item = {'icon': 'folder',}
-
-    children_nodes = [
-        {
-            "queryset": Employee.objects.all(), 
-            'label': Concat(F('first_name'), Value(' '), F('last_name'), Value(', '), F('position')),
-            'value': 'pk',
-            'parent': 'department',
-            'serializer': EmployeeSerializer,
-            'extra':{'icon':'user', },
-        }
-    ]
-    '''
+registry.register(Department, 'department')
+registry.register(Employee, 'employee')
+registry.register(WorkGroup, 'workgroup')
