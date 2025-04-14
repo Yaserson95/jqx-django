@@ -1,4 +1,4 @@
-const ITEM_REGEX = /\{\{\s*(?P<val>\w+)\s*\}\}/
+const ITEM_REGEX = /\{\{\s*(?<val>\w+)\s*\}\}/
 
 class MasterTreeItemMenu extends MasterContextMenu{
     open(e, root=false){
