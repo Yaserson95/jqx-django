@@ -151,6 +151,9 @@ class MasterTreeViewSet(ReadOnlyModelViewSet):
     
     def get_model_info(self, item:list, item_type:int):
         model = item['queryset'].model
+        if isinstance(item['label'], F): 
+            label = '{{%s}}' % item['label'].name 
+        else: label = item['label']
 
         info = {
             'class_name': model.__name__,
@@ -158,7 +161,8 @@ class MasterTreeViewSet(ReadOnlyModelViewSet):
             'name': model._meta.verbose_name,
             'plural_name': model._meta.verbose_name_plural,
             'parent': item.get('parent', 'parent'),
-            'id': model._meta.pk.name
+            'id': model._meta.pk.name,
+            'label': label
         }
 
         if item['extra'] is not None:

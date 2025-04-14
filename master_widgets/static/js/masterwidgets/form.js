@@ -371,15 +371,21 @@ class MasterModelForm extends MasterForm{
         if(!this.validate()) return;
         var form_data = this.jqx_target.val();
         if(!this.__id){
-            this.loader(this.model.create(form_data)).then((data=>{
-                this.__id = data[this.model.id];
-                this.trigger('save').trigger('create');
-            }));
+            return this.loader(this.model.create(form_data))
+                .then((data=>{this.onSave(data, true);}));
         }else{
-            this.loader(this.model.update(this.__id, form_data)).then((data=>{
-                this.trigger('save').trigger('update');
-            }));
+            return this.loader(this.model.update(this.__id, form_data))
+                .then((data=>{this.onSave(data, false);}));
         }
+    }
+
+    onSave(data, create=false){
+        data = this.model.formatData(data);
+        if(create){
+            this.__id = data[this.model.id];
+            this.trigger('create', [data]);
+        }else this.trigger('update', [data]);
+        this.trigger('save',[data, create]);
     }
 };
 

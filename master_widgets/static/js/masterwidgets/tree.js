@@ -1,3 +1,5 @@
+const ITEM_REGEX = /\{\{\s*(?P<val>\w+)\s*\}\}/
+
 class MasterTreeItemMenu extends MasterContextMenu{
     open(e, root=false){
         if(!root){
@@ -88,7 +90,6 @@ class BaseMasterTree extends MasterWidget{
 
     render(){
         super.render();
-
         if(this.show_menu)
             this.renderItemsMenu();
 
@@ -154,6 +155,7 @@ class BaseMasterTree extends MasterWidget{
 
     updateItem(item){
         item.id = this.getItemID();
+        item.find = `${item.type}:${item.value}`;
         if(item.has_items){
             item.items = [this.getItemLoaderOptions(item.id + '-loader')];
         }
@@ -195,6 +197,17 @@ class BaseMasterTree extends MasterWidget{
     getItemByID(item_id){
         var item = this.jqx_target.find('#'+item_id);
         return item[0]? item[0]: null;
+    }
+
+    findItemID(value, type=0){
+        var find = `${type}:${value}`;
+        for(var i in this.__items_info){
+            var item = this.__items_info[i];
+            if(item.find === find){
+                return i;
+            }
+        }
+        return null;
     }
 
     getItemOptions(element){
@@ -276,28 +289,54 @@ class MasterModelTree extends BaseMasterTree{
 
     initItemTypes(types){
         for(var i in types){
-            var form_target = $('<div/>', {'id': `${this.jqx_target.attr('id')}form${i}`})
-                .appendTo(this.target);
-            types[i].model = MasterModel.getByName(types[i].class_name);
-            types[i].form_dialog = new MasterFormDialog(form_target,{
-                'parent':this,
-                'title': 'Форма заполнения объекта БД',
-                'model': types[i].model
-            });
-            types[i].form_dialog.widget.on({
-                'create': (e)=>{
-                    var form = $(e.target).data('masterWidget');
-                    console.log('create', form.value);
-                },
-                'update': (e)=>{
-                    var form = $(e.target).data('masterWidget');
-                    console.log('create', form);
-                }
-            });
+            this.initItemType(i, types[i]);
         }
         return types;
     }
 
+    initItemType(index, type_info){
+        var form_target = $('<div/>', {'id': `${this.jqx_target.attr('id')}form${index}`})
+                .appendTo(this.target);
+        type_info.model = MasterModel.getByName(type_info.class_name);
+        type_info.form_dialog = new MasterFormDialog(form_target,{
+            'parent':this,
+            'title': 'Форма заполнения объекта БД',
+            'model': type_info.model
+        });
+        type_info.form_dialog.widget.on({
+           'save': (e, data, create)=>{
+                this.onUpdateItem(data, type_info);
+           }           
+        });
+        return type_info;
+    }
+
+    onUpdateItem(data, type_info){
+        var parent = data[type_info.parent];
+        var item_id = this.findItemID(data[type_info.id], type_info.type);
+
+        console.log(this.toItem(data, type_info));
+
+        //1. Если объект не был добавлен
+        //if(item_id === null)
+        //    return this.__createItem(data, this.findItemID(parent, this.main_type));
+    }
+
+    toItem(data, type_info){
+        console.log(ITEM_REGEX.exec(type_info.label));
+    }
+
+    __createItem(data, parent_id){
+        if(parent_id === null)
+            return null;
+        return this.addItems([data], this.getItemByID(parent_id));
+    }
+
+    __moveItem(data, item_id, parent_id){
+        if(item_id !== null)
+            this.removeItem(this.getItemByID(item_id));
+        this.__createItem(data, parent_id);
+    }
 
 
     loadItems(element=null, page=1){

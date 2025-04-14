@@ -139,7 +139,6 @@ class MasterModel{
         }
         return null;
     }
-
     static get models(){
         return this.__models || {};
     }
@@ -287,6 +286,19 @@ class MasterModel{
             throw new Error('Размер страницы должен быть больше или равен 1.');
         }
         this.pageSize = pageSize;
+    }
+
+    formatData(data){
+        var is_many = Array.isArray(data);
+        var adapter = this.getAdapter({
+            'datatype': 'array',
+            'localdata': is_many? data: [data],
+            'url': null
+        });
+        adapter.dataBind();
+        if(!is_many)
+            return adapter.records[0];
+        return adapter.records;
     }
 
     /**
