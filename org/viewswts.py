@@ -1,7 +1,5 @@
 from master_widgets.tree import MasterTreeViewSet
-from django.db.models.functions import Concat
-from django.db.models import F, Value
-from rest_framework.filters import OrderingFilter
+from django.db.models import F
 from master_widgets.api import registry
 
 from .models import Department, Employee, WorkGroup

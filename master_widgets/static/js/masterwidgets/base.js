@@ -1,4 +1,6 @@
 'use strict';
+const STR_TEMPLATE_REGEX = /\{\{\s*(?<val>\w+)\s*\}\}/
+
 function pop_attr(obj, name, def=null){
 	if(obj[name] !== undefined){
 		var val = obj[name];
@@ -152,6 +154,21 @@ function camelToKebab(str) {
         .replace(/([a-z])([A-Z])/g, '$1-$2') // Добавляем дефис между строчной и заглавной буквой
         .replace(/([A-Z])([A-Z][a-z])/g, '$1-$2') // Обрабатываем аббревиатуры (например, XML → X-M-L)
         .toLowerCase(); // Преобразуем все в нижний регистр
+}
+
+/**
+ * 
+ * @param {object} obj 
+ * @param {string} template
+ * @returns {string}
+ */
+function renderStrTemplate(obj, template){
+	var str = "";
+	var items = template.split(STR_TEMPLATE_REGEX);
+	for(var i in items)
+		str += (i%2!==0)? obj[items[i]]: items[i];
+	
+	return str;
 }
 
 

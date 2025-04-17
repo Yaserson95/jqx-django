@@ -67,6 +67,23 @@ class MasterForm extends MasterWidget{
         return new Date();
     }
 
+    /**
+     * 
+     * @param {Date} datetime 
+     * @param {string} type 
+     */
+    static dateTimeToStr(datetime, type='datetime'){
+        if(!datetime) return null;
+        var iso_str = datetime.toISOString();
+        switch(type){
+            case 'date':
+                return iso_str.split(/\T|\./)[0];
+            case 'time':
+                return iso_str.split(/\T|\./)[1];
+        }
+        return iso_str;
+    }
+
     widgetOptionsPatterns(patterns={}){
 		return super.widgetOptionsPatterns({
             ...patterns,
@@ -233,6 +250,25 @@ class MasterForm extends MasterWidget{
         }
     }
 
+    formatValues(values){
+        for(var i in this.__fields_info){
+            var info = this.__fields_info[i];
+
+            if(!values[info.name]) continue;
+
+            var field = this.jqx('getComponentByName', info.name);
+            var widget_info = field.data('jqxWidget');
+            var widget_name = widget_info? widget_info.widgetName: null;
+            
+            switch(widget_name){
+                case 'jqxDateTimeInput':
+                    values[info.name] = MasterForm.dateTimeToStr(field.jqxDateTimeInput('getDate'), info.type);
+                    break;
+            }
+        }
+        return values;
+    }
+
     set template(template){
         if(this.target.data('masterWidget'))
             throw new Error('Form is initialized');
@@ -253,7 +289,8 @@ class MasterForm extends MasterWidget{
     }
 
     get value(){
-        return this.jqx_target.val();
+        return this.formatValues(this.jqx_target.val());
+
     }
 
     get fields(){
@@ -346,10 +383,12 @@ class MasterModelForm extends MasterForm{
 
     initField(field, info){
         super.initField(field, info);
-        if(info.type === 'field' && this.model.getRelation(info.bind)){
+        var relation = this.model.getRelation(info.bind);
+        if(info.type === 'field' && relation){
             var opts = copyKeys(info, FIELD_PROPS.list);
-            opts.model = this.model.getRelation(info.bind).related_object.toLowerCase();
+            opts.model = relation.related_object.toLowerCase();
             opts.type = 'dropdown';
+            if(relation.type === 'ManyToManyField') opts.checkboxes = true;
             new MasterListInput(field, opts);
         }
     }
@@ -369,7 +408,7 @@ class MasterModelForm extends MasterForm{
     }
     save(){
         if(!this.validate()) return;
-        var form_data = this.jqx_target.val();
+        var form_data = this.value;
         if(!this.__id){
             return this.loader(this.model.create(form_data))
                 .then((data=>{this.onSave(data, true);}));

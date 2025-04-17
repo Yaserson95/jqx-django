@@ -123,7 +123,7 @@ class BaseMasterList extends MasterWidget{
         return this.paginator.total_pages;
     }
 
-    set value(value){
+    set value(value=null){
         if(value === null){
             if(this.__value)
                 delete this.__value;
@@ -142,6 +142,10 @@ class BaseMasterList extends MasterWidget{
         var val = this.searcher.val();
         if(val === '' || val === null) return null;
         return val;
+    }
+
+    get checkboxes(){
+        return this.attrs.checkboxes || false;
     }
 }
 
@@ -335,18 +339,25 @@ class MasterListInput extends MasterWidgetInput{
         this.widget.on({
             'select': (event)=>{
                 var item = this.widget.jqx('getSelectedItem');
-                if(item !== null)
+                if(item !== null){
                     this.label = item.label;
+                    this.clear_button.show();
+                } 
             },
             'dataBindComplite':(event)=>{
                 var item = this.widget.jqx('getSelectedItem');
-                if(item === null && !this.__initLabel && this.widget.value){
+                var value = this.widget.value;
+
+                if(this.widget.checkboxes)
+                    return;
+                
+                if(item === null && !this.__initLabel && value){
                     if(this.widget instanceof MasterModelList){
-                        this.widget.getListItem(this.widget.value).then(item =>{
+                        this.widget.getListItem(value).then(item =>{
                             this.label = item.label;
                         });
                     }else if(this.widget instanceof MasterList){
-                        this.label = this.widget.getListItem(this.widget.value).label;
+                        this.label = this.widget.getListItem(value).label;
                     }
                     this.__initLabel = true;
                 }
@@ -354,12 +365,8 @@ class MasterListInput extends MasterWidgetInput{
         });
     }
 
-    set value(value){
-        this.widget.value = value;
+    __setValue(value){
         this.__initLabel = false;
-    }
-
-    get value(){
-        return this.widget.value;
+        super.__setValue(value);
     }
 }

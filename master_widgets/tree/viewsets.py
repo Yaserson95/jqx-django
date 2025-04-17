@@ -3,21 +3,21 @@ from django.db.models.expressions import Combinable
 from django.db.models.functions import Concat
 from django.http.response import Http404
 from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework.serializers import SerializerMetaclass
+
 import re
 
-from ..helpers import model_field_exists
+from ..helpers import model_field_exists, validate_options
 from .serializers import TreeSerializer
 
 CHILDREN_TYPE_PATTERNS = {
     'queryset': {'type': QuerySet,},
-    'value': {'type': (str, Combinable,), 'default': 'pk'},
-    'label': {'type': (str, Combinable,), },
+    'value': {'type': str, 'default': 'pk'},
+    'label': {'type': (str, F), },
     'parent': {'type': str, 'default': 'parent'},
-    'name': {'type': str, 'required': False},
-    'verbose_name': {'type': str, 'required': False},
+    'serializer': {'type': SerializerMetaclass,},
     'extra': {'type':dict, 'required': False},
 }
-
 
 ITEM_REGEX = r'\{\{\s*(?P<val>\w+)\s*\}\}'
 
@@ -27,88 +27,134 @@ class TreeItemsData:
         self.data = data
 
 class MasterTreeViewSet(ReadOnlyModelViewSet):
-    template: list
     main_type: int = 0
     default_parent = None
     parent_lookup = 'parent'
-    serializer_class = TreeSerializer
     search_fields = ['label']
-    queryset = None
-    _parent_obj = None
-    
+    template: list
 
-    def get_queryset(self):        
-        if self.queryset: return self.queryset
-        querysets = []
-        for item in self.template:
-            value_expr = item.get('value', None)
-            if value_expr is None:
-                value_expr = F('pk')
-            querysets.append({
-                'qs': item['queryset'],
-                'label_expr': MasterTreeViewSet.get_item_expression(item['label']),
-                'value_expr': MasterTreeViewSet.get_item_expression(value_expr),
-                'parent_expr': F(item.get('parent', 'parent'))
-            })
-        return querysets
+    _parent = None
+    _queryset = None
 
-    def filter_queryset(self, querysets: list[QuerySet]):
-        qs:QuerySet|None = None
-        parent = self.get_parent()
-        self.is_serach = bool(self.request.GET.get('search', None))
-
-        if self.action != 'list':
-            item_type = int(self.request.GET.get('type', self.main_type))
-            self.queryset = querysets[item_type]['qs']
-            return self.queryset
-
-        if parent is None and not self.is_serach:
-            qs = self.get_item_queryset(querysets[self.main_type], self.main_type, parent)
+    @property
+    def queryset(self)->QuerySet:
+        if self._queryset is not None:
+            return self._queryset
+        
+        if self.is_common:
+            self._queryset = self.make_queryset()
         else:
-            for i, item in enumerate(querysets):
-                item_qs = self.get_item_queryset(item, i, parent)
-                if qs is not None:
-                    qs = qs.union(item_qs)
-                else: qs = item_qs
+            self._queryset = self.template[self.item_type]['queryset']
+        return self._queryset
+    
+    @property
+    def item_type(self)->int:
+        if self.parent is None:
+            return self.main_type
+        return int(self.request.GET.get('type', self.main_type))
+    
+    @property
+    def is_common(self)->bool:
+        if self.action == 'retrieve' or self.parent is None:
+            return False
+        
+        item_type = self.request.GET.get('type', None)
+        return item_type is None
+    
+    @property
+    def is_search(self)->bool:
+        return bool(self.request.GET.get('search', None))
+    
+    @property
+    def serializer_class(self):
+        if self.is_common and self.action != 'retrieve':
+            return TreeSerializer
+        else: return self.template[self.item_type]['serializer']
 
-        self.queryset = self.apply_backend_filter('OrderingFilter', qs)
-        self.filter_backends = []
-        return self.queryset
+    @property
+    def parent(self):
+        if self._parent is None:
+            parent_id = self.request.GET.get(self.parent_lookup, self.default_parent)
+            if parent_id is None: return None
+            try:
+                qs:QuerySet = self.template[self.main_type]['queryset']
+                self._parent = qs.get(pk=parent_id)        
+            except qs.model.DoesNotExist:
+                raise Http404
+                
+        return self._parent
     
-    def get_serializer(self, *args, **kwargs):
-        if self.action == 'list':
-            return TreeItemsData(*args)
-        return super().get_serializer(*args, **kwargs)
+    def __init__(self, **kwargs):
+        for i in range(0, len(self.template)):
+            self.template[i] = validate_options(self.template[i], CHILDREN_TYPE_PATTERNS)
+            self.template[i]['serializer'] = TreeSerializer.update_serializer(self.template[i]['serializer'])
+        super().__init__(**kwargs)
+           
+    def filter_queryset(self, queryset):
+        if not self.is_common:
+            item = self.get_item_opts(self.item_type)
+            qs = self.update_item_queryset(queryset, item, False)
+            return super().filter_queryset(qs)
+        return queryset
     
-    def get_serializer_class(self):
-        item_type = int(self.request.GET.get('type', self.main_type))
-        try:
-            return self.template[item_type]['serializer']
-        except:
-            raise Http404
-    
-    def get_item_queryset(self, qs_item:dict, obj_type:int, parent)->QuerySet:
-        if obj_type == self.main_type:
-            has_items = self.has_items_queryset()
-        else:
-            has_items = Value(False)
+    def get_item_opts(self, item_type: int)->list:
+        item = self.template[item_type]
+        value_expr = item.get('value', F('pk'))
 
-        annotations = {
-            'label': qs_item['label_expr'],
-            'value': qs_item['value_expr'],
-            'parent': qs_item['parent_expr'],
-            'has_items': has_items,
-            'type': Value(obj_type),
+        return {
+            'label_expr': MasterTreeViewSet.get_item_expression(item['label']),
+            'value_expr': F(value_expr),
+            'parent_expr': F(item.get('parent', 'parent')),
+            'type': item_type
         }
-        annotations_to_add = {k: v for k, v in annotations.items() if not model_field_exists(qs_item['qs'].model, k)}
-        qs:QuerySet = qs_item['qs']\
-            .annotate(**annotations_to_add)
-        
-        if not self.is_serach:
-            qs = qs.filter(**{self.template[obj_type].get('parent', 'parent'): parent})
-        
-        qs = self.apply_backend_filters(qs, ['OrderingFilter'])
-        return qs.values(*annotations.keys()).order_by()
+
+    def make_queryset(self)->QuerySet:
+        qs: QuerySet|None = None
+        for i in range(0, len(self.template)):
+            options = self.get_item_opts(i)
+            sub_qs = self.apply_backend_filters(
+                self.update_item_queryset(self.template[i]['queryset'], options),
+                ['OrderingFilter']
+            )
+
+            if qs is None: qs = sub_qs
+            else: qs = qs.union(sub_qs)
+
+        qs = self.apply_backend_filter('OrderingFilter', qs)
+        return qs
+    
+    def update_item_queryset(self, qs:QuerySet, options:dict, subquery:bool=True)->QuerySet:
+        item:dict = self.template[options['type']]
+
+        #Make has items annotation
+        if options['type'] == self.main_type: has_items = self.has_items_queryset()
+        else: has_items = Value(False)
+
+        #Apply annotations
+        annotations = {
+            'label': options['label_expr'],
+            'value': options['value_expr'],
+            'parent': options['parent_expr'],
+            'has_items': has_items,
+            'type': Value(options['type']),
+        }
+        annotations_to_add = {k: v for k, v in annotations.items() if not model_field_exists(qs.model, k)}
+        qs = qs.annotate(**annotations_to_add)
+
+        #Apply parent if not search
+        if not self.is_search and self.action != 'retrieve':
+            parent_key = item.get('parent', 'parent')
+            qs = qs.filter(**{parent_key: self.parent})
+
+        if subquery:
+            qs = qs.order_by().values(*annotations.keys())        
+        return qs
+
+    def get_serializer(self, *args, **kwargs):
+        if self.is_common and self.action != 'retrieve':
+            return TreeItemsData(*args)
+        ser = super().get_serializer(*args, **kwargs)
+        return ser
 
     def apply_backend_filter(self, name: str, qs: QuerySet)->QuerySet:
         for flt in self.filter_backends:
@@ -193,7 +239,6 @@ class MasterTreeViewSet(ReadOnlyModelViewSet):
     def get_item_expression(cls, template:str|Combinable)->Combinable:
         if(isinstance(template, Combinable)):
             return template
-        
         return cls.template2expression(cls.get_item_template(template))
     
     class Meta:

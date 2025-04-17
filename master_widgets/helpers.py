@@ -30,6 +30,7 @@ def validate_options_type(option, name:str, required_type):
         mes = required_type.__name__
 
     if not isinstance(option, required_type):
+        print(type(option), required_type)
         raise ValidateOptionsException('Option %s must be %s type(s)' % (name, mes))
 
 def validate_options(options: dict, validators:dict)->dict:

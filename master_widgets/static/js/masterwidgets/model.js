@@ -397,7 +397,7 @@ class MasterModel{
      * @param {object} data - Данные для создания объекта.
      * @returns {Promise} - Промис с результатом запроса.
      */
-    async create(data) {
+    async create(data){
         try {
             const response = await $.ajax({
                 url: this.endpoint,
@@ -418,11 +418,11 @@ class MasterModel{
      * @param {object} data - Данные для обновления объекта.
      * @returns {Promise} - Промис с результатом запроса.
      */
-    async update(id, data) {
+    async update(id, data, partial=false) {
         try {
             const response = await $.ajax({
                 url: `${this.endpoint}${id}/`,
-                method: 'PUT',
+                method: partial? 'PATCH': 'PUT',
                 data: JSON.stringify(data),
                 headers: this.options.headers
             });

@@ -15,7 +15,7 @@ class MasterWidgetInput extends MasterWidget{
 
     init(attrs = {}){
         defaults(attrs, {
-            'width': 150,
+            'width': 250,
             'height': 30,
         });
         super.init(attrs);
@@ -41,6 +41,16 @@ class MasterWidgetInput extends MasterWidget{
         });
     }
 
+    renderClearButton(target){
+        var clear_button = $("<button/>", {'class':'clear-button'})
+            .text('✖')
+            .appendTo(target)
+            .css('height', this.widget_target.height())
+            .click(()=>{this.clear();});
+
+        return clear_button;
+    }
+
     render(){
         this.widget_target = this.target;
         this.target = $('<div/>').appendTo(this.widget_target);
@@ -53,12 +63,18 @@ class MasterWidgetInput extends MasterWidget{
                 this.renderDialog();
                 break;
         }
+
+        this.clear_button = this.renderClearButton(this.widget_target);
         super.render();
-
         this.widget_target.data('masterWidget', this.target.data('masterWidget'));
-
         if(this.label)
             this.__setLabel(this.label);
+    }
+
+    clear(){
+        this.value = null;
+        this.label = '';
+        this.clear_button.hide();
     }
 
     set label(label){
@@ -71,7 +87,7 @@ class MasterWidgetInput extends MasterWidget{
     }
 
     set value(value){
-        this.widget.value = value;
+        this.__setValue(value);
     }
 
     get value(){
@@ -107,5 +123,12 @@ class MasterWidgetInput extends MasterWidget{
                 break;
 
         }
+    }
+
+    __setValue(value){
+        if(Array.isArray(value) && value.length === 0) value = null;
+        this.widget.value = value;
+        if(!value) this.clear_button.hide();
+        else this.clear_button.show();
     }
 }

@@ -1,5 +1,3 @@
-const ITEM_REGEX = /\{\{\s*(?<val>\w+)\s*\}\}/
-
 class MasterTreeItemMenu extends MasterContextMenu{
     open(e, root=false){
         if(!root){
@@ -67,6 +65,22 @@ class MasterTreeItemMenu extends MasterContextMenu{
 }
 
 class BaseMasterTree extends MasterWidget{
+    /**
+     * 
+     * @param {object} data 
+     * @param {object} type_info 
+     * @returns {object}
+     */
+    static toItem(data, type_info){
+        var obj = {
+            'label': renderStrTemplate(data, type_info.label),
+            'value': data[type_info.id],
+            'type': type_info.type,
+            'parent': data[type_info.parent],
+            'has_items': data.has_items || false
+        };
+        return obj;
+    }
     widgetOptionsPatterns(patterns={}){
 		return super.widgetOptionsPatterns({
             ...patterns,
@@ -136,12 +150,12 @@ class BaseMasterTree extends MasterWidget{
     addItems(items, node=null){
         var id_s = [];
         for(var i in items){
-            items[i] = this.updateItem(items[i]);
+            items[i] = this.initItem(items[i]);
             id_s.push('#' + items[i].id);
         }
         this.jqx('addTo', items, node);
         this.items_info = items;
-        return this.jqx_target.find(id_s);
+        return this.jqx_target.find(id_s.join(','));
     }
 
     removeItem(element){
@@ -152,8 +166,13 @@ class BaseMasterTree extends MasterWidget{
         return this;
     }
 
+    updateItem(data, element){
+        var id = this.getElementID(element);
+        if(id === null) return null;
+        this.jqx('updateItem', data, element);    
+    }
 
-    updateItem(item){
+    initItem(item){
         item.id = this.getItemID();
         item.find = `${item.type}:${item.value}`;
         if(item.has_items){
@@ -305,7 +324,15 @@ class MasterModelTree extends BaseMasterTree{
         });
         type_info.form_dialog.widget.on({
            'save': (e, data, create)=>{
-                this.onUpdateItem(data, type_info);
+                var value = data[type_info.id];
+                $.ajax({
+                    'url': `${this.source}${value}/`,
+                    'data':{'type':type_info.type},
+                    'success':(data)=>{
+                        this.onUpdateItem(data, type_info);
+                    }
+                });
+                
            }           
         });
         return type_info;
@@ -315,29 +342,29 @@ class MasterModelTree extends BaseMasterTree{
         var parent = data[type_info.parent];
         var item_id = this.findItemID(data[type_info.id], type_info.type);
 
-        console.log(this.toItem(data, type_info));
-
-        //1. Если объект не был добавлен
-        //if(item_id === null)
-        //    return this.__createItem(data, this.findItemID(parent, this.main_type));
+        //create
+        if(item_id === null){
+            if(parent === null){
+                this.addItems([data], null);
+                return;
+            }
+            var parent_id = this.findItemID(parent, this.main_type);
+            if(parent_id !== null) this.addItems([data], this.getItemByID(parent_id));
+            return;
+        }
+        //edit
+        var element = this.getItemByID(item_id);
+        if(parent === null){
+            this.jqx('addItem', element, null);
+            return;
+        }
+        var parent_id = this.findItemID(parent, this.main_type);
+        if(parent_id === null){
+            this.removeItem(element);
+            return;
+        }
+        this.getItemByID(parent_id).append(element);
     }
-
-    toItem(data, type_info){
-        console.log(ITEM_REGEX.exec(type_info.label));
-    }
-
-    __createItem(data, parent_id){
-        if(parent_id === null)
-            return null;
-        return this.addItems([data], this.getItemByID(parent_id));
-    }
-
-    __moveItem(data, item_id, parent_id){
-        if(item_id !== null)
-            this.removeItem(this.getItemByID(item_id));
-        this.__createItem(data, parent_id);
-    }
-
 
     loadItems(element=null, page=1){
         var parent = (element)? this.jqx('getItem', element): null;
@@ -396,7 +423,7 @@ class MasterModelTree extends BaseMasterTree{
         });
 
         this.showElementLoader(node, false);
-        this.addItems(this.adapter.records, node);
+        console.log(this.addItems(this.adapter.records, node));
     }
 
     openFormDialog(element=null){

@@ -116,6 +116,29 @@
     text-align: center !important;
 }
 
+.master-widget-input{
+    position: relative;
+}
+
+.master-widget-input .dropdown-input{
+    padding-left: 15px;
+}
+
+.master-widget-input .clear-button{
+    position: absolute;
+    height: 100%;
+    top: 0px;
+    left: 0px;
+    outline: none;
+    border: none;
+    background: none;
+    color: gray;
+    cursor: pointer;
+}
+.master-widget-input .clear-button:hover{
+    color: black;
+}
+
 /*.master-toolbar{
     display: flex;
     flex-direction: row;
