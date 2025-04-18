@@ -93,17 +93,20 @@ class MasterDialog extends MasterWidget{
         }
 
         this.attrs = wondows_opts;
+        this.inital_position = this.target.position();
         super.render();
-
+        
         this.header.title = this.header.element.find('.dialog-header-title');
         this.header.icon = this.header.element.find('.dialog-header-icon');
     }
 
     open(){
         this.jqx('open');
+        //$(document.body).css('overflow', 'hidden');
     }
     close(){
         this.jqx('close');
+        //$(document.body).css('overflow', '');
     }
 
     set title(text){

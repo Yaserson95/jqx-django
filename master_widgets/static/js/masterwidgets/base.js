@@ -171,6 +171,37 @@ function renderStrTemplate(obj, template){
 	return str;
 }
 
+function buildTree(items) {
+    // Создаем хэш-таблицу для быстрого доступа и корневой массив
+    const map = {};
+    const roots = [];
+
+    // Первый проход: создаем все узлы
+    items.forEach(item => {
+        map[item.id] = { ...item, Items: [] };
+    });
+
+    // Второй проход: связываем узлы между собой
+    items.forEach(item => {
+        const node = map[item.id];
+        
+        if (item.parent !== null && item.parent !== undefined) {
+            // Если родитель существует, добавляем к нему потомка
+            if (map[item.parent]) {
+                map[item.parent].Items.push(node);
+            } 
+            // Опционально: обработка случая с "битым" parent
+            // else {
+            //     console.warn(`Parent ${item.parent} not found for item ${item.id}`);
+            // }
+        } else {
+            // Добавляем корневые элементы
+            roots.push(node);
+        }
+    });
+
+    return roots;
+}
 
 /**
  * Base widget class providing common functionality for UI components
@@ -631,7 +662,6 @@ class MasterModelLoader{
 			else return widget.value;
 		}
 	});
-
 	
 	$.masterWidget = MasterWidget;
 });

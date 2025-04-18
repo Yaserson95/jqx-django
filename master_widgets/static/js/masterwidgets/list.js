@@ -125,8 +125,10 @@ class BaseMasterList extends MasterWidget{
 
     set value(value=null){
         if(value === null){
-            if(this.__value)
+            if(this.__value){
                 delete this.__value;
+                this.jqx('selectIndex', -1);
+            }
             return;
         }
         this.__value = this.validateValue(value);

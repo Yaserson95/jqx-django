@@ -102,6 +102,11 @@ class BaseMasterTree extends MasterWidget{
         return types;
     }
 
+    initJQXTarget(target){
+        this.root_list = $('<ul/>', {'class':'master-jqx-widget'}).appendTo(target);
+		return this.root_list;
+	}
+
     render(){
         super.render();
         if(this.show_menu)
@@ -160,23 +165,50 @@ class BaseMasterTree extends MasterWidget{
 
     removeItem(element){
         var id = this.getElementID(element);
+        this.removeChildren(element);
         if(this.__items_info[id])
             delete this.__items_info[id];
         this.jqx('removeItem', element);
+
+        return this;
+    }
+    removeChildren(element){
+        var children = this.getChildren(element);
+        for(var i in children){
+            this.jqx('removeItem', children[i]);
+            if(this.__items_info[children[i].id])
+                delete this.__items_info[children[i].id];
+        }
         return this;
     }
 
     updateItem(data, element){
-        var id = this.getElementID(element);
-        if(id === null) return null;
-        this.jqx('updateItem', data, element);    
+        //Updateing data
+        var old_data = this.getItemOptions(element);
+        data.id = old_data.id;
+        data = this.initItem(data, true);
+        this.jqx('updateItem', element, data);
+        this.__items_info[data.id] = data;
+
+        //Updating parent
+        if(data.parent !== old_data.parent){
+            if(data.parent === null)
+                return this.moveElement(element, null);
+            var parent = this.findItemID(data.parent, this.main_type);
+            if(parent === null)
+                this.removeItem(element);
+            else this.moveElement(element, this.getItemByID(parent));
+        }
+        return this;
     }
 
-    initItem(item){
-        item.id = this.getItemID();
+    initItem(item, updating=false){
         item.find = `${item.type}:${item.value}`;
-        if(item.has_items){
-            item.items = [this.getItemLoaderOptions(item.id + '-loader')];
+        if(!updating){
+            item.id = this.getItemID();
+            if(item.has_items){
+                item.items = [this.getItemLoaderOptions(item.id + '-loader')];
+            }
         }
         return item;
     }
@@ -218,6 +250,57 @@ class BaseMasterTree extends MasterWidget{
         return item[0]? item[0]: null;
     }
 
+    getChildren(element=null){
+        return ((element !== null)? $(element).find('li'): this.jqx_target.find('li')).toArray();
+    }
+
+    moveElement(element, to){
+        var opts = copyKeys(
+            this.getItemOptions(element),
+            ['id', 'value', 'label', 'parent', 'type', 'has_items']
+        );
+        if(opts.has_items)
+            opts.items = this.getItemsStructure(element);
+
+        this.jqx('removeItem', element);
+        
+        if(to === null)
+            this.jqx('addTo', opts, null);
+        else{
+            var parent_opts = this.getItemOptions(to)
+            if(parent_opts.isExpanded){
+                this.jqx('addTo', opts, to);
+            }
+        }
+    }
+
+    getItemsStructure(node=null){
+        var list = (node !== null)? $(node).find('>ul'): this.jqx_target.find('ul.jqx-tree-dropdown-root');
+        var parent_id = (node!==null)? this.jqx('getItem', node).value: null;
+        var children = list.children().toArray();
+        var items = [];
+
+        for(var i in children){
+            var opts = this.jqx('getItem', children[i]);
+            var nodeInfo = {
+                'id': opts.id,
+                'label': opts.label,
+                'value': opts.value,
+                'parent': parent_id,
+                'has_items': opts.hasItems,
+            };
+            if(opts.hasItems)
+                nodeInfo.items = this.getItemsStructure(children[i]);
+
+            if(this.__items_info[children[i].id]){
+                nodeInfo.type = this.__items_info[children[i].id].type;
+            }
+            items.push(nodeInfo);
+        }
+        
+        return items;
+    }
+
     findItemID(value, type=0){
         var find = `${type}:${value}`;
         for(var i in this.__items_info){
@@ -230,6 +313,9 @@ class BaseMasterTree extends MasterWidget{
     }
 
     getItemOptions(element){
+        if(element === null)
+            this.__items_info.root;
+        
         var item = this.jqx('getItem', element);
         if(!item) return null;
         return {...item, ...(this.items_info[item.id] || {})};
@@ -339,31 +425,20 @@ class MasterModelTree extends BaseMasterTree{
     }
 
     onUpdateItem(data, type_info){
-        var parent = data[type_info.parent];
         var item_id = this.findItemID(data[type_info.id], type_info.type);
-
-        //create
+        var parent_id = this.findItemID(data[type_info.parent], this.main_type);
+        
+        //Create
         if(item_id === null){
-            if(parent === null){
-                this.addItems([data], null);
-                return;
-            }
-            var parent_id = this.findItemID(parent, this.main_type);
-            if(parent_id !== null) this.addItems([data], this.getItemByID(parent_id));
+            if(data[type_info.parent] === null) 
+                return this.addItems([data]);
+            if(parent_id !== null)
+                return this.addItems([data], this.getItemByID(parent_id));
             return;
         }
-        //edit
-        var element = this.getItemByID(item_id);
-        if(parent === null){
-            this.jqx('addItem', element, null);
-            return;
-        }
-        var parent_id = this.findItemID(parent, this.main_type);
-        if(parent_id === null){
-            this.removeItem(element);
-            return;
-        }
-        this.getItemByID(parent_id).append(element);
+
+        //Update
+        return this.updateItem(data, this.getItemByID(item_id));
     }
 
     loadItems(element=null, page=1){
@@ -423,7 +498,7 @@ class MasterModelTree extends BaseMasterTree{
         });
 
         this.showElementLoader(node, false);
-        console.log(this.addItems(this.adapter.records, node));
+        this.addItems(this.adapter.records, node);
     }
 
     openFormDialog(element=null){

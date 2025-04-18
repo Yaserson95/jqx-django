@@ -31,8 +31,7 @@
             'source': LOCAL_DATA,
             'type': 'dropdown'
         });
-        dr_local_lst.value="PUSH";
-        
+        dr_local_lst.value="PUSH";        
 
         var form_dialog = new MasterFormDialog('#simple-form', {
             'title': 'Форма заполнения объекта БД',
@@ -61,7 +60,8 @@
         });
 
         $('#simple-form-btn').click(()=>{
-            form_dialog.open();
+            //form_dialog.open();
+            console.log(tree.getItemsStructure(null));
         });
         
 
