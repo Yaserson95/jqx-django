@@ -91,6 +91,10 @@ class MasterTreeViewSet(ReadOnlyModelViewSet):
         super().__init__(**kwargs)
            
     def filter_queryset(self, queryset):
+        
+        if self.action == 'retrieve':
+            return queryset
+        
         if not self.is_common:
             item = self.get_item_opts(self.item_type)
             qs = self.update_item_queryset(queryset, item, False)

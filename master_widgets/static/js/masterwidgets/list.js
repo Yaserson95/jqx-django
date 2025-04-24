@@ -30,6 +30,7 @@ class BaseMasterList extends MasterWidget{
 
         if(!this.attrs.checkboxes)
             this.on('select', (evt)=>{this.onSelect(evt)});
+        else this.on('checkChange', (evt)=>{this.onCheckChange(evt)});
     }
 
     renderPaginator(){
@@ -83,8 +84,29 @@ class BaseMasterList extends MasterWidget{
         this.__value = item.value;
     }
 
+    onCheckChange(evt){
+        if(!this.__value) this.__value = {};
+        if(evt.args.checked){
+            this.__value[evt.args.value] = {
+                'label': evt.args.label,
+                'value': evt.args.value
+            };
+        }else if(this.__value[evt.args.value]){
+            delete this.__value[evt.args.value];
+        }
+    }
+
     validateValue(value){
-        return value;
+        if(value === null) return null;
+        if(!this.checkboxes) return value;
+
+        if(!Array.isArray(value))
+            throw new Error('Value type must be an array');
+
+        var values = {};
+        for(var i=0;i<value.length;i++)
+            values[value[i]] = {'value': value[i]};
+        return values;
     }
 
     update(){
@@ -136,7 +158,15 @@ class BaseMasterList extends MasterWidget{
     }
 
     get value(){
-        return this.__value || null;
+        if(!this.checkboxes)
+            return this.__value || null;
+        if(!this.__value)
+            return [];
+        
+        var values = [];
+        for(var i in this.__value)
+            values.push(i);
+        return values;
     }
 
     get search_text(){
@@ -192,25 +222,18 @@ class MasterList extends BaseMasterList{
     }
 
     validateValue(value){
-        if(this.attrs.checkboxes){
-            if(!Array.isArray(value))
-                throw new Error('Value type must be an array');
+        value = super.validateValue(value);
+        if(value === null || !this.attrs.checkboxes)
+            return value;
 
-            var newValues = [];
-            for(var i in this.source){
-                var checked = value.indexOf(this.source[i].value);
-                this.source[i].checked = checked !== -1;
-                if(this.source[i].checked)
-                    newValues.push(value[checked]);
-            }
-            return newValues;
-        }else{
-            for(var i in this.source){
-                if(this.source[i].value === value)
-                    return value;
-            }
+        var newValues = {};
+
+        for(var i in this.source){
+            this.source[i].checked = value[this.source[i].value] !== undefined;
+            if(this.source[i].checked)
+                newValues[this.source[i].value] = this.source[i];
         }
-        return null;
+        return newValues;
     }
 
     update(){
@@ -304,18 +327,11 @@ class MasterModelList extends BaseMasterList{
 
         if(this.attrs.checkboxes){
             for(var i in records){
-                records[i].checked = this.__value.indexOf(records[i].value)!==-1;
+                records[i].checked = this.__value[records[i].value]!==undefined;
             }
         }
         return records;
     }
-
-    validateValue(value){
-        if(this.attrs.checkboxes &&!Array.isArray(value))
-            throw new Error('Value type must be an array');
-        return value;
-    }
-
     getListItem(value){
         return this.model.getChoiceItem(value);
     }
@@ -338,14 +354,18 @@ class MasterListInput extends MasterWidgetInput{
     }
     render(){
         super.render();
-        this.widget.on({
-            'select': (event)=>{
+        if(!this.widget.checkboxes){
+            this.widget.on('select', (event)=>{
                 var item = this.widget.jqx('getSelectedItem');
                 if(item !== null){
                     this.label = item.label;
                     this.clear_button.show();
-                } 
-            },
+                }
+            });
+        }else{
+            this.label = '----выбрать несколько----';
+        }
+        this.widget.on({
             'dataBindComplite':(event)=>{
                 var item = this.widget.jqx('getSelectedItem');
                 var value = this.widget.value;

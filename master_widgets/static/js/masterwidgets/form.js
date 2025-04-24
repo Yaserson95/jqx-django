@@ -100,6 +100,7 @@ class MasterForm extends MasterWidget{
 
     init(options = {}){
         this.jqx_type = 'jqxForm';
+        this.__form_errors = {};
         super.init(options);
     }
 
@@ -182,6 +183,24 @@ class MasterForm extends MasterWidget{
     }
 
     createValidators(field, info, field_validators = []){
+        //Server form errors
+        field_validators.push({
+            'input': field[0],
+            'message':()=>{
+                if(this.__form_errors[info.name]){
+                    var mes = this.__form_errors[info.name].join('; ');
+                    delete this.__form_errors[info.name];
+                    return mes;
+                }
+                return 'Неправильно заполнено поле';
+            }, 
+            'action': 'keyup, blur', 
+            'rule':(input, commit)=>{
+                return this.__form_errors[info.name] === undefined;
+            }
+        });
+        
+        //Base form errors
         if(!MasterForm.isCustomType(info.type)){
             for(var f_name in BASE_VALIDATORS){
                 if(info[f_name]){
@@ -242,6 +261,7 @@ class MasterForm extends MasterWidget{
     }
 
     clear(){
+        this.__form_errors = {};
         for(var i in this.__fields_info){
             var info = this.__fields_info[i];
             var field = this.jqx('getComponentByName', info.name);
@@ -409,13 +429,17 @@ class MasterModelForm extends MasterForm{
     save(){
         if(!this.validate()) return;
         var form_data = this.value;
-        if(!this.__id){
-            return this.loader(this.model.create(form_data))
-                .then((data=>{this.onSave(data, true);}));
-        }else{
-            return this.loader(this.model.update(this.__id, form_data))
-                .then((data=>{this.onSave(data, false);}));
-        }
+        var savePrm = this.__id? this.model.update(this.__id, form_data):
+            this.model.create(form_data);
+
+        return this.loader(savePrm)
+            .then((data=>{this.onSave(data, true);}))
+            .catch((e=>{
+                if(e.responseJSON){
+                    this.__form_errors = e.responseJSON;
+                    this.validate();
+                }
+            }));
     }
 
     onSave(data, create=false){

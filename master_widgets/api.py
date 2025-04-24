@@ -1,7 +1,7 @@
 from django.db.models import Field
 from rest_framework import serializers, routers
 from .helpers import get_field_filters
-from .viewsets import MasterModelViewSet
+from .viewsets import MasterModelViewSet, MasterModelChoiseViewSet
 
 class APIRegistry:
     def __init__(self):
@@ -26,6 +26,9 @@ class APIRegistry:
             # Create a ModelViewSet for the model
             viewset = self._create_model_viewset(model, serializer_class, extra)
 
+        #choices_vs = self._create_choice_viewset(model, extra)
+        # Register the choices ViewSet in the router
+        #self.router.register(f'{name}/choices', choices_vs, basename=model._meta.model_name + '_choices')
         # Register the ViewSet in the router
         self.router.register(name, viewset, basename=model._meta.model_name)
         # Add the model to the registry
@@ -82,6 +85,14 @@ class APIRegistry:
             f'{model.__name__}ViewSet',
             (MasterModelViewSet,),
             options
+        )
+    
+    def _create_choice_viewset(self, model, extra:dict={}):
+        extra['queryset'] =  model.objects.all()
+        return type(
+            f'{model.__name__}ChoiseViewSet',
+            (MasterModelChoiseViewSet,),
+            extra
         )
 
     def _get_fields_filters(self, model)->dict:

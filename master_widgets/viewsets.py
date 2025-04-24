@@ -1,5 +1,6 @@
-from rest_framework.viewsets import ModelViewSet
+
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework import filters
 from rest_framework.decorators import action
 from .serializers import ChoiseItemSerializer
@@ -18,7 +19,6 @@ class MasterModelViewSet(ModelViewSet):
         return queryset
     
     def get_serializer_class(self):
-        print(self.action)
         match self.action:
             case 'choices_list':
                 return ChoiseItemSerializer
@@ -33,3 +33,7 @@ class MasterModelViewSet(ModelViewSet):
     @action(url_path='choices/(?P<pk>[^/.]+)', url_name='choices_detail', methods=['GET'], detail=False)
     def choices_retrieve(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
+    
+class MasterModelChoiseViewSet(ReadOnlyModelViewSet):
+    pagination_class = MasterPagination
+    serializer_class = ChoiseItemSerializer
