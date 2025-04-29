@@ -112,7 +112,6 @@ function splitObject(obj, keys){
 	return new_obj;
 }
 
-
 function copyKeys(obj, keys){
 	var newObj = {};
 	for(var i in keys){
@@ -120,6 +119,21 @@ function copyKeys(obj, keys){
 			newObj[keys[i]] = obj[keys[i]];
 	}
 	return newObj;
+}
+
+/**
+ * Creating random string
+ * @param {number} len length of string
+ * @param {string} template symbols
+ * @returns {string}
+ */
+function make_str(len=16, template='0123456789ABCDEF'){
+	var str = "";
+	for(var i=0; i<len; i++){
+		var s = Math.ceil(Math.random()*(template.length - 1));
+		str+=template[s];
+	}
+	return str;
 }
 
 /**
@@ -267,6 +281,13 @@ class MasterWidget{
             prot = Object.getPrototypeOf(prot);
         }while(prot && prot !== this);
 	}
+
+	static autoID(widget){
+		if(!widget.target.attr('id'))
+			widget.target.attr('id', widget.constructor.name + make_str())
+		return widget.target.attr('id');
+	}
+	
 	/**
      * Initializes widget instance
      * @param {jQuery} target - Container element for the widget
@@ -350,6 +371,7 @@ class MasterWidget{
      * Renders widget and applies theme settings
      */
 	render(){
+		MasterWidget.autoID(this);
 		this.jqx(this.getWidgetOptions());
 		this.target.data('masterWidget', this);
 		this.trigger('ready');

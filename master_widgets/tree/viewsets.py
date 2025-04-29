@@ -44,12 +44,13 @@ class MasterTreeViewSet(ReadOnlyModelViewSet):
         if self.is_common:
             self._queryset = self.make_queryset()
         else:
+            print(self.item_type)
             self._queryset = self.template[self.item_type]['queryset']
         return self._queryset
     
     @property
     def item_type(self)->int:
-        if self.parent is None:
+        if self.parent is None and self.action != 'retrieve':
             return self.main_type
         return int(self.request.GET.get('type', self.main_type))
     
@@ -90,11 +91,7 @@ class MasterTreeViewSet(ReadOnlyModelViewSet):
             self.template[i]['serializer'] = TreeSerializer.update_serializer(self.template[i]['serializer'])
         super().__init__(**kwargs)
            
-    def filter_queryset(self, queryset):
-        
-        if self.action == 'retrieve':
-            return queryset
-        
+    def filter_queryset(self, queryset):       
         if not self.is_common:
             item = self.get_item_opts(self.item_type)
             qs = self.update_item_queryset(queryset, item, False)

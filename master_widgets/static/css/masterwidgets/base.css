@@ -186,9 +186,17 @@
 .master-model-form{
     overflow-y: auto;
     background-color: #F5F5F5;
+    position: relative;
 }
 
 .master-list{
     display: flex;
     flex-direction: column;
+}
+
+.master-message{
+    position: absolute;
+    top:0px;
+    right: 0px;
+    width:100%;
 }

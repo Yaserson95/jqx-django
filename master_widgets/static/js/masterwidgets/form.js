@@ -255,9 +255,9 @@ class MasterForm extends MasterWidget{
         }
         return item;
     }
-    message(text){
-        this.notification.text(text);
-        this.notification.jqxNotification('open');
+    message(text, options = null){
+        this.target.masterMessage(text, options);
+        return this;
     }
 
     clear(){
@@ -435,6 +435,7 @@ class MasterModelForm extends MasterForm{
         return this.loader(savePrm)
             .then((data=>{this.onSave(data, true);}))
             .catch((e=>{
+                this.message(`Ошибка: ${e.statusText}`, {'template':'error',});
                 if(e.responseJSON){
                     this.__form_errors = e.responseJSON;
                     this.validate();
@@ -444,6 +445,7 @@ class MasterModelForm extends MasterForm{
 
     onSave(data, create=false){
         data = this.model.formatData(data);
+        this.message('Данные сохранены', {'template':'success',});
         if(create){
             this.__id = data[this.model.id];
             this.trigger('create', [data]);

@@ -188,7 +188,11 @@ class BaseMasterTree extends MasterWidget{
         data.id = old_data.id;
         data = this.initItem(data, true);
         this.jqx('updateItem', element, data);
-        this.__items_info[data.id] = data;
+
+        this.__items_info[data.id] = {
+            ...this.__items_info[data.id],
+            ...data
+        };
 
         //Updating parent
         if(data.parent !== old_data.parent){

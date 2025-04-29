@@ -31,48 +31,10 @@
             'source': LOCAL_DATA,
             'type': 'dropdown'
         });
-        dr_local_lst.value="PUSH";        
-
-        var form_dialog = new MasterFormDialog('#simple-form', {
-            'title': 'Форма заполнения объекта БД',
-            'width': '100%',
-            'model': 'product',
-            /*'template':[
-                {
-                    type: 'blank',
-                    rowHeight: '10px'
-                },
-                {
-                    columns: [
-                        {
-                            type: 'button',
-                            name: 'submit',
-                            text: 'Submit',
-                            width: '90px',
-                            height: '30px',
-                            rowHeight: '40px',
-                            columnWidth: '50%',
-                            align: 'right'
-                        },         
-                    ]
-                }
-            ]*/
-        });
+        dr_local_lst.value="PUSH";
 
         $('#simple-form-btn').click(()=>{
-            //form_dialog.open();
-            console.log(tree.getItemsStructure(null));
+
         });
-        
-
-        /*while(prot){
-            console.log(prot);
-            prot = prot.prototype;
-            
-        }*/
-
-        //console.log(form_dialog.constructor);
-
-        //form.id = 2;
     });
 });
