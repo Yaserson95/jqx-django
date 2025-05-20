@@ -1,220 +1,104 @@
 'use strict';
 const STR_TEMPLATE_REGEX = /\{\{\s*(?<val>\w+)\s*\}\}/
+const MASTER_JS_URL = "/static/js/masterwidgets/";
+const JQX_JS_URL = "/static/js/jqx/";
 
-function pop_attr(obj, name, def=null){
-	if(obj[name] !== undefined){
-		var val = obj[name];
-		delete(obj[name]);
-		return val;
+class MasterUse{
+	__pathes = [];
+	static prepareJS(url){
+		var scriptTag = document.createElement('script');
+		var prm = new Promise((resolve, reject)=>{
+			function implementationCode(result){
+				resolve(result);
+			}
+			scriptTag.src = url;
+		
+			scriptTag.onload = implementationCode;
+			scriptTag.onreadystatechange = implementationCode;
+			scriptTag.onerror = (err)=>{
+				reject(err);
+			}
+		});
+
+		return [scriptTag, prm];
+	};
+
+	static createPath(path){
+		return {
+			'path': path,
+			'names': {},
+			'add': function(name){
+				if(Array.isArray(name)){
+					var n = [];
+					for(var i in name){
+						n.push(this.add(name[i]));
+					}
+					return n;
+				}
+				if(this.names[name] === undefined){
+					var scriptName = `${this.path}${name}.js`;
+					var tag_opts = MasterUse.prepareJS(scriptName);
+					this.names[name] = {'tag': tag_opts[0], 'promise': tag_opts[1]};
+				}
+				return {...this.names[name], 'name':name};
+			},
+			'getPromises': function(){
+				var promises = [];
+				for(var i in this.names){
+					promises.push(this.names[i].promise);
+				}
+				return promises;
+			},
+			'start': async function(name, location){
+				if(!(this.names[name].loaded || this.names[name].in_process)){
+					this.names[name].in_process = true;
+					location.appendChild(this.names[name].tag);
+				}
+				await this.names[name].promise;
+				this.names[name].loaded = true;
+				this.names[name].in_process = false;
+			},
+			'loadAll': async function(location){
+				for(var i in this.names){
+					await this.start(i, location);
+				}
+			},
+			'load': function(name, location){
+				this.add(name);
+				return this.start(name, location);
+			}
+		};
 	}
-	return def;
-}
 
-function check_option_type(option, type){
-	//If option must be a many types
-	if(Array.isArray(type)){
-		for(var i in type){
-			try{
-				check_option_type(option, type[i]);
-				return;
-			}catch(e){}
+	pathIndexOf(path){
+		for(var i in this.__pathes){
+			if(this.__pathes[i].path === path) return i;
 		}
-		throw new Error(`Option types must be a ${type.join(', ')}`);
+		return -1;
 	}
 
-	//If option must be a array
-	else if(type === 'array'){
-		if(!Array.isArray(option)) 
-			throw new Error(`Option type must be a "array"`);
-		else return;
-	}
-	//If option must be a JS type
-	else if(typeof type === 'string' && typeof option !== type)
-		throw new Error(`Option type must be a "${type}"`);
-
-	//If option must be a class object
-	else if(typeof type === 'function' && !option instanceof type)
-		throw new Error(`Option type must be a "${type.constructor.name}"`);
-}
-
-function check_option(option, pattern){
-	
-	var required = pattern.required!==undefined? pattern.required: true;
-
-	//Default value
-	if(option === null || option === undefined)
-		option = pattern.default!==undefined? pattern.default: null;
-
-	//Check is required
-	if(option === null){
-		if(required)
-			throw new Error(`Option is required`);
-		else return null;
-	}
-
-	//Check option type
-	if(pattern.type !== undefined)
-		check_option_type(option, pattern.type);
-
-	return option;
-
-}
-function check_options(options, patterns){
-	var new_options = {};
-	for(var i in patterns){
-		try{
-			var name = (patterns[i].name !== undefined)? patterns[i].name: i;
-			new_options[name] = check_option(pop_attr(options, i, null), patterns[i]);
-		}catch(e){
-			e.message = i + ' - ' + e.message.toLowerCase();
-			throw e;
+	async loadAll(){
+		for(var i in this.__pathes){
+			await this.__pathes[i].loadAll(document.head);
 		}
 	}
-	return new_options;
-}
-function apply_options(cls_object, obj){
-	for(var i in obj)
-		cls_object[i] = obj[i];
-}
-
-function set_default(obj, name, def=null){
-	if(obj[name] === undefined)
-		obj[name] = def;
-}
-
-/**
- * 
- * @param {object} obj 
- * @param {object} defaults 
- * @returns 
- */
-function defaults(obj, defaults){
-	for(var i in defaults){
-		if(obj[i] === undefined)
-			obj[i] = defaults[i];
+	load(name, path){
+		var path_index = this.pathIndexOf(path);
+		if(path_index === -1){
+			path_index = this.__pathes.length;
+			this.add(name, path);
+		}
+		return this.__pathes[path_index].load(name, document.head);
 	}
-	return obj;
-}
 
-/**
- * 
- * @param {object} obj 
- * @param {Array} keys 
- */
-function splitObject(obj, keys){
-	var new_obj = {};
-	for(var i in keys){
-		if(obj[keys[i]] === undefined)
-			continue;
-		new_obj[keys[i]] = obj[keys[i]];
-		delete(obj[keys[i]]);
+	add(name, base_path){
+		var path_index = this.pathIndexOf(base_path);
+		if(path_index === -1){
+			path_index = this.__pathes.length;
+			this.__pathes.push(MasterUse.createPath(base_path))
+		}
+		this.__pathes[path_index].add(name);
 	}
-	return new_obj;
-}
-
-function copyKeys(obj, keys){
-	var newObj = {};
-	for(var i in keys){
-		if(obj[keys[i]] !== undefined)
-			newObj[keys[i]] = obj[keys[i]];
-	}
-	return newObj;
-}
-
-/**
- * Creating random string
- * @param {number} len length of string
- * @param {string} template symbols
- * @returns {string}
- */
-function make_str(len=16, template='0123456789ABCDEF'){
-	var str = "";
-	for(var i=0; i<len; i++){
-		var s = Math.ceil(Math.random()*(template.length - 1));
-		str+=template[s];
-	}
-	return str;
-}
-
-/**
- * Get Font Awesome icon element
- * @param {string} icon 
- * @returns {jQuery}
- */
-function faicon(icon){
-    return $('<i/>', {'class': `fa fa-${icon}`});
-}
-
-function getСookie(name){
-	var keyvals = document.cookie.split('; ');
-	var cookie = {};
-	for(var i in keyvals){
-		var k = keyvals[i].split('=');
-		cookie[k[0]] = k[1];
-	}
-	if(name !== undefined)
-		return cookie[name];
-	return cookie;
-}
-
-function empty(value){
-	if(Array.isArray(value))
-		return value.length === 0;
-	return (value === "") || (value === null);
-}
-
-function camelToKebab(str) {
-    return str
-        .replace(/([a-z])([A-Z])/g, '$1-$2') // Добавляем дефис между строчной и заглавной буквой
-        .replace(/([A-Z])([A-Z][a-z])/g, '$1-$2') // Обрабатываем аббревиатуры (например, XML → X-M-L)
-        .toLowerCase(); // Преобразуем все в нижний регистр
-}
-
-/**
- * 
- * @param {object} obj 
- * @param {string} template
- * @returns {string}
- */
-function renderStrTemplate(obj, template){
-	var str = "";
-	var items = template.split(STR_TEMPLATE_REGEX);
-	for(var i in items)
-		str += (i%2!==0)? obj[items[i]]: items[i];
-	
-	return str;
-}
-
-function buildTree(items) {
-    // Создаем хэш-таблицу для быстрого доступа и корневой массив
-    const map = {};
-    const roots = [];
-
-    // Первый проход: создаем все узлы
-    items.forEach(item => {
-        map[item.id] = { ...item, Items: [] };
-    });
-
-    // Второй проход: связываем узлы между собой
-    items.forEach(item => {
-        const node = map[item.id];
-        
-        if (item.parent !== null && item.parent !== undefined) {
-            // Если родитель существует, добавляем к нему потомка
-            if (map[item.parent]) {
-                map[item.parent].Items.push(node);
-            } 
-            // Опционально: обработка случая с "битым" parent
-            // else {
-            //     console.warn(`Parent ${item.parent} not found for item ${item.id}`);
-            // }
-        } else {
-            // Добавляем корневые элементы
-            roots.push(node);
-        }
-    });
-
-    return roots;
 }
 
 /**
@@ -236,6 +120,16 @@ class MasterWidget{
 				styles.push(href.substring(MasterWidget.themes_base.length));
 		});
 		return styles;
+	}
+
+	static register(cls){
+		if(Array.isArray(cls)){
+			for(var i in cls)
+				MasterWidget.register(cls[i]);
+			return;
+		}
+		var cls_name = cls.name.startsWith('Master')? cls.name.substring(6): cls.name
+		$.masterWidget[cls_name] = cls;
 	}
 	/**
      * Loads specified theme stylesheet if not already loaded
@@ -294,9 +188,11 @@ class MasterWidget{
      * @param {object} options - Configuration options
      */
 	constructor(target, options){
-		this.target = this.initTarget($(target));
-		this.init(options);
-		if(this.autorender)	this.render();
+		$.loadModules().then(()=>{
+			this.target = this.initTarget($(target));
+			this.init(options);
+				if(this.autorender)	this.render();
+		});
 	}
 
 	/**
@@ -541,6 +437,7 @@ class MasterWidget{
 	}
 };
 
+
 class MasterLoadedWidget extends MasterWidget{
 	widgetOptionsPatterns(){
 		return super.widgetOptionsPatterns({
@@ -597,6 +494,8 @@ class MasterLoadedWidget extends MasterWidget{
 }
 
 //Mixins
+
+
 class MasterModelLoader{
 	constructor(widget){
 		this.widget = widget;
@@ -659,6 +558,52 @@ class MasterModelLoader{
 
 (jQuery)(function($){
 	var val_func = $.fn.val;
+	var modules = new MasterUse();
+
+	function getWidgetByName(name, target, attrs){
+		var cls = $.masterWidget[name];
+		if(cls === undefined)
+			throw new Error(`Widget '${name}' is not defined`);
+
+		if(target === undefined) return cls;
+		return new cls(target, attrs);
+	}
+
+	$.use = function(script, base_url=MASTER_JS_URL){
+		modules.add(script, base_url);
+		return this;
+	}
+
+	$.include = function(name, base_url=MASTER_JS_URL){
+		return modules.load(name, base_url);
+	}
+
+	$.loadModules = function(){
+		return modules.loadAll();
+	}
+
+	$.masterWidget = function(name, target, attrs={}){
+		if(name === undefined) return MasterWidget;
+		var cls_path = name.split('.');
+		return new Promise((resolve, reject)=>{
+			if(cls_path.length === 1)
+				return getWidgetByName(name, target, attrs);
+			else if(cls_path.length === 2){
+				$.use(cls_path[0]).loadModules().then(()=>{
+					try{
+						resolve(getWidgetByName(cls_path[1], target, attrs));
+					}catch(e){
+						reject(e);
+					}
+				});
+			}else{
+				reject(Error('Uncorrected widget name'));
+			}
+		}).catch((e)=>{
+			console.error(e);
+		});
+	}
+	
 	$.fn.extend({
 		'sval': val_func,
 		'inParents': function(elem){
@@ -682,8 +627,11 @@ class MasterModelLoader{
 			if(args.length > 0)
 				widget.value = args[0];
 			else return widget.value;
+		},
+		'masterWidget': function(name, attrs={}){
+			return $.masterWidget(name, this, attrs);
 		}
 	});
-	
-	$.masterWidget = MasterWidget;
+
+	$.use('utils');
 });

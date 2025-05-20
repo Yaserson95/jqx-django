@@ -1,21 +1,6 @@
-class MasterGridHeaderMenu extends MasterContextMenu{
-	itemClick(e){
-		var data = e.args.data;
-		switch(data.action){
-			case 'show-column':
-				this.parent.showColumn(data.value, data.checked);
-		}
-		return super.itemClick(e);
-	}
-};
-
-class MasterGridRowMenu extends MasterContextMenu{
-	open(e, row){
-		this.row = row;
-		console.log(row);
-		super.open(e);
-	}
-};
+$.use(['jqxgrid', 'jqxgrid.filter','jqxgrid.sort','jqxgrid.selection', 
+	'jqxgrid.columnsresize', 'jqxgrid.pager', 'jqxscrollbar', 'jqxbuttons', 
+	'jqxdropdownlist', 'jqxlistbox', 'jqxcheckbox'], JQX_JS_URL).use('menu');
 
 class MasterGrid extends MasterWidget{
 	static get_sorting(sortinformation){
@@ -29,6 +14,29 @@ class MasterGrid extends MasterWidget{
 		return sorting;
 	}
 
+	static get HeadMenuClass(){
+		return class extends MasterContextMenu{
+			itemClick(e){
+				var data = e.args.data;
+				switch(data.action){
+					case 'show-column':
+						this.parent.showColumn(data.value, data.checked);
+				}
+				return super.itemClick(e);
+			}
+		};
+	}
+
+	static get RowMenuClass(){
+		return class extends MasterContextMenu{
+			open(e, row){
+				this.row = row;
+				console.log(row);
+				super.open(e);
+			}
+		};
+	}
+
 	widgetOptionsPatterns(){
 		return super.widgetOptionsPatterns({
 			'source': {'type': 'string', 'default':'/'},
@@ -37,8 +45,8 @@ class MasterGrid extends MasterWidget{
 			'sorting': {'type': 'object', 'required': false},
 			'headerMenu': {'type': 'boolean', 'default': false, 'name': 'header_menu'},
 			'rowMenu': {'type': 'boolean', 'default': false, 'name': 'row_menu'},
-			'headerMenuClass': {'type': 'function', 'default': MasterGridHeaderMenu, 'name': 'header_menu_class'},
-			'rowMenuClass': {'type': 'function', 'default': MasterGridRowMenu, 'name': 'row_menu_class'},
+			'headerMenuClass': {'type': 'function', 'default': MasterGrid.HeadMenuClass, 'name': 'header_menu_class'},
+			'rowMenuClass': {'type': 'function', 'default': MasterGrid.RowMenuClass, 'name': 'row_menu_class'},
 			'columns': {'type': 'array'},
 		});
 	}
@@ -120,6 +128,7 @@ class MasterGrid extends MasterWidget{
 		return new this.header_menu_class(this.target, {
 			'elements': '.jqx-grid-header',
 			'width': 220,
+			'height': 'auto',
 			'parent': this,
 			'items':[
 				{
@@ -203,7 +212,7 @@ class MasterGrid extends MasterWidget{
 	}
 };
 
-class MasterModelGrid extends MasterLoadedWidget{
+class MasterRemoteGrid extends MasterLoadedWidget{
 	init(options = {}){
 		options.widgetClass = MasterGrid;
 		options.url = options.source + 'config/';
@@ -211,3 +220,5 @@ class MasterModelGrid extends MasterLoadedWidget{
 		this.config = this.attrs;
 	}
 }
+
+MasterWidget.register([MasterGrid, MasterRemoteGrid]);

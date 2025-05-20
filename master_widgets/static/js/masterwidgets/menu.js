@@ -1,3 +1,5 @@
+$.use(['jqxmenu', 'jqxcheckbox'], JQX_JS_URL);
+
 class MasterMenu extends MasterWidget{
     static getItemType(item_data){
         if(item_data.url !== undefined)
@@ -164,3 +166,5 @@ class MasterContextMenu extends MasterMenu{
         return this.parentTarget.find(this.elements);
     }
 }
+
+MasterWidget.register([MasterMenu, MasterContextMenu]);

@@ -1,3 +1,5 @@
+$.use(['jqxbuttons', 'jqxpanel', 'jqxdropdownlist', 'jqxcheckbox'], JQX_JS_URL);
+
 TOOL_PATTERNS = {
     'icon': {'type': 'string', 'required': false}, 
     'type': {'type': 'string', 'default': 'button'}, 

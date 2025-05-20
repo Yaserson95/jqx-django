@@ -1,3 +1,5 @@
+$.use(['jqxlistbox', 'jqxcheckbox', 'jqxinput'], JQX_JS_URL);
+
 class BaseMasterList extends MasterWidget{
     static getValueIndex(list, value){
         for(var i in list){
@@ -21,10 +23,10 @@ class BaseMasterList extends MasterWidget{
         super.init(attrs);
     }
     render(){        
-        this.paginator = this.renderPaginator();
+        /*this.paginator = this.renderPaginator();
         this.paginator.on('changePage', (e)=>{
             this.onChangePage(e);
-        });
+        });*/
         this.searcher = this.renderSearch();
         super.render();
 
@@ -34,8 +36,10 @@ class BaseMasterList extends MasterWidget{
     }
 
     renderPaginator(){
-        var p_target = $('<div/>', {'class':'listbox-paginator'}).appendTo(this.target);
-        return new MasterPaginator(p_target, {
+        const Paginator = $.masterWidget.Paginator;
+        var p_target = $('<div/>', {'class':'listbox-paginator'}).appendTo(this.target);        
+
+        return new Paginator(p_target, {
             'parent': this, 
             'count': this.count,
             'pageSize': pop_attr(this, '__page_size'),
@@ -341,54 +345,60 @@ class MasterModelList extends BaseMasterList{
     }
 }
 
-class MasterListInput extends MasterWidgetInput{
-    init(attrs = {}){
-        defaults(attrs, {
-            'contentHeight': 300,
-        });
-        if(attrs.model)
-            attrs.widgetClass = MasterModelList;
-        else if(attrs.source)
-            attrs.widgetClass = MasterList;
-        super.init(attrs);
-    }
-    render(){
-        super.render();
-        if(!this.widget.checkboxes){
-            this.widget.on('select', (event)=>{
-                var item = this.widget.jqx('getSelectedItem');
-                if(item !== null){
-                    this.label = item.label;
-                    this.clear_button.show();
+$.include('inputs').then(()=>{
+    class MasterListInput extends MasterWidgetInput{
+        init(attrs = {}){
+            defaults(attrs, {
+                'contentHeight': 300,
+            });
+            if(attrs.model)
+                attrs.widgetClass = MasterModelList;
+            else if(attrs.source)
+                attrs.widgetClass = MasterList;
+            super.init(attrs);
+        }
+        render(){
+            super.render();
+            if(!this.widget.checkboxes){
+                this.widget.on('select', (event)=>{
+                    var item = this.widget.jqx('getSelectedItem');
+                    if(item !== null){
+                        this.label = item.label;
+                        this.clear_button.show();
+                    }
+                });
+            }else{
+                this.label = '----выбрать несколько----';
+            }
+            this.widget.on({
+                'dataBindComplite':(event)=>{
+                    var item = this.widget.jqx('getSelectedItem');
+                    var value = this.widget.value;
+
+                    if(this.widget.checkboxes)
+                        return;
+                    
+                    if(item === null && !this.__initLabel && value){
+                        if(this.widget instanceof MasterModelList){
+                            this.widget.getListItem(value).then(item =>{
+                                this.label = item.label;
+                            });
+                        }else if(this.widget instanceof MasterList){
+                            this.label = this.widget.getListItem(value).label;
+                        }
+                        this.__initLabel = true;
+                    }
                 }
             });
-        }else{
-            this.label = '----выбрать несколько----';
         }
-        this.widget.on({
-            'dataBindComplite':(event)=>{
-                var item = this.widget.jqx('getSelectedItem');
-                var value = this.widget.value;
 
-                if(this.widget.checkboxes)
-                    return;
-                
-                if(item === null && !this.__initLabel && value){
-                    if(this.widget instanceof MasterModelList){
-                        this.widget.getListItem(value).then(item =>{
-                            this.label = item.label;
-                        });
-                    }else if(this.widget instanceof MasterList){
-                        this.label = this.widget.getListItem(value).label;
-                    }
-                    this.__initLabel = true;
-                }
-            }
-        });
+        __setValue(value){
+            this.__initLabel = false;
+            super.__setValue(value);
+        }
     }
+    MasterWidget.register(MasterListInput);
+});
 
-    __setValue(value){
-        this.__initLabel = false;
-        super.__setValue(value);
-    }
-}
+
+MasterWidget.register([MasterList, MasterModelList]);

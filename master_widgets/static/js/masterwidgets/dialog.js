@@ -1,3 +1,4 @@
+//$.use(JQX_JS_URL);
 const allowedWindowOptions = [
     'width', 'height', 'title', 'position', 'draggable', 'resizable',
     'modal', 'autoOpen', 'showCloseButton', 'initContent', 'theme',
@@ -131,3 +132,5 @@ class MasterDialog extends MasterWidget{
         this.jqx('close');
     }
 };
+
+MasterWidget.register(MasterDialog);

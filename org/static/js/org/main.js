@@ -1,7 +1,19 @@
 'use strict';
 (jQuery)(function($){
+    const LOCAL_DATA = Object.keys($.fn).map((item, i)=>({
+        'label': `${i + 1}. ${item}`,
+        'value': item.toUpperCase()
+    }));
+
+    $('#list').masterWidget('list.List', {
+        'checkboxes': true,
+        'source': LOCAL_DATA
+    });
+    
     $(document).ready(function (){
-        var tree = new MasterModelTree('#org-structure', {
+        
+
+        /*var tree = new MasterModelTree('#org-structure', {
             'source': '/org/tree/',
             'width': '100%',
             'height': 400,
@@ -35,6 +47,6 @@
 
         $('#simple-form-btn').click(()=>{
 
-        });
+        });*/
     });
 });
