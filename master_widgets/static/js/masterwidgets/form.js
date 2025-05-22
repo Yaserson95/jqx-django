@@ -1,4 +1,5 @@
-const IGNORED_TYPES = ['blank', 'button'];
+const IGNORED_TYPES = ['blank'];
+const FORM_ELEMENTS = ['button', 'label'];
 const FIELD_TYPES = [
     'text', 'option', 'blank', 'button', 'color', 
     'boolean', 'password', 'label', 'time', 'date', 'datetime'
@@ -57,6 +58,145 @@ const CUSTOM_VALIDATORS = {
         }
     }
 };
+
+$.use('inputs', 'jqx.jqxform', 'jqx.jqxcalendar', 'jqx.jqxdatetimeinput', 'jqx.jqxvalidator');
+
+class MasterFormValidator{
+    static isCustomType(type){
+        return FIELD_TYPES.indexOf(type) === -1;
+    }
+
+    constructor(form){
+        this.conf = {
+            'action': 'keyup, blur',
+        };
+        this.form = form;
+        this.rules = [];
+        this.initValidators(form.inputs);
+        form.jqx_target.jqxValidator({
+            'rules': this.rules,
+            'hintType': "label"
+        });
+    }
+
+    initValidators(fields){
+        for(var i in fields){
+            this.createValidators(fields[i]);
+        }        
+    }
+
+    createValidators(field){
+        if(!MasterFormValidator.isCustomType(field.type)){
+            for(var f_name in BASE_VALIDATORS){
+                if(field[f_name]){
+                    var validator = BASE_VALIDATORS[f_name](field);
+                    this.addRule(field.element, validator.rule, validator.message);
+                }
+            }
+        }
+        if(field.validators){
+            for(var i in field.validators){
+                this.addRule(field.element, field.validators[i].rule, field.validators[i].message);
+            }
+        }
+    }
+    addRule(input, rule, message){
+        this.rules.push({
+            'input': input, 
+            'message': message, 
+            'action': this.conf.action, 
+            'rule': rule 
+        });
+    }
+    
+    get value(){
+
+    }
+
+    set value(value){
+
+    }
+
+    get requestValue(){
+
+    }
+}
+
+class MasterForm2 extends MasterWidget{
+    init(attrs = {}){
+        this.jqx_type = 'jqxForm';
+        this.elements = {'inputs':{}, 'buttons':{}, 'labels':{}, 'names':[]};
+        attrs.template = this.initTemplate(attrs.template);
+        super.init(attrs);
+    }
+
+    initTemplate(template){
+        for(var i in template){
+            var type = template[i].type || null;
+            var name = template[i].name || null;
+            if(IGNORED_TYPES.indexOf(type) !== -1) continue;
+            if(type === null){
+                if(template[i].columns)
+                    template[i].columns = this.initTemplate(template[i].columns);
+                continue;
+            }
+            if(name === null){
+                name = `${(FORM_ELEMENTS.indexOf(type)!==-1)? type: 'field'}_${i}`;
+                template[i].name = name;
+            }
+            if(FORM_ELEMENTS.indexOf(type)===-1){
+                template[i].bind = name;
+            }
+            if(this.elements.names.indexOf(name) !== -1){
+                throw new Error(`Element ${name} is duplicated`);
+            }
+            this.elements.names.push(name);
+
+            switch(type){
+                case 'label':
+                    this.elements.labels[name] = template[i];
+                    break;
+                case 'button':
+                    this.elements.buttons[name] = template[i];
+                    break;
+                default:
+                    this.elements.inputs[name] = template[i];
+                    break;
+            }
+        }
+        return template;
+    }
+    initElements(){
+        if(!this.elements.names)
+            return;
+        delete this.elements.names;
+        for(var i in this.elements){
+            for(var j in this.elements[i]){
+                this.elements[i][j].element = this.getComponentByName(j);
+            }
+        }
+    }
+    render(){
+        super.render();
+        this.initElements();
+        this.validator = new MasterFormValidator(this);
+    }
+
+    getComponentByName(name){
+        return this.jqx('getComponentByName', name);
+    }
+
+    getWidgetOptions(){
+        var opts = super.getWidgetOptions();
+        var w = pop_attr(opts, 'width');
+        var h = pop_attr(opts, 'height');
+        return opts;
+    }
+
+    get inputs(){
+        return this.elements.inputs;
+    }
+}
 
 class MasterForm extends MasterWidget{
     static isCustomType(type){
@@ -409,7 +549,7 @@ class MasterModelForm extends MasterForm{
             opts.model = relation.related_object.toLowerCase();
             opts.type = 'dropdown';
             if(relation.type === 'ManyToManyField') opts.checkboxes = true;
-            new MasterListInput(field, opts);
+            new $.masterWidget.ListInput(field, opts);
         }
     }
 
@@ -454,36 +594,40 @@ class MasterModelForm extends MasterForm{
     }
 };
 
-class MasterFormDialog extends MasterDialog{
-    init(attrs = {}){
-        if(attrs.model)
-            attrs.widgetClass = MasterModelForm;
-        else attrs.widgetClass = MasterForm;
-        super.init(attrs);
-    }
-    renderContent(){
-        super.renderContent();
-        this.on({
-            'close': ()=>{this.__closeDrodDowns()},
-            'click': (e)=>{
-                //this.__closeDrodDowns($(e.target));
-            }
-        });
-    }
-
-    confirm(){
-        this.widget.submit();
-    }
-
-    __closeDrodDowns(target=null){
-        var fields = this.widget.fields;
-        for(var i in fields){
-            var fld = fields[i];
-            var data = fld.data('jqxWidget');            
-            if(!data) continue;
-            if(data.widgetName === 'jqxDropDownButton'){
-                fld.jqxDropDownButton('close');
+$.extendWidget('dialog.Dialog', (MasterDialog)=>{
+    return class MasterFormDialog extends MasterDialog{
+        init(attrs = {}){
+            if(attrs.model)
+                attrs.widgetClass = MasterModelForm;
+            else attrs.widgetClass = MasterForm;
+            super.init(attrs);
+        }
+        renderContent(){
+            super.renderContent();
+            this.on({
+                'close': ()=>{this.__closeDrodDowns()},
+                'click': (e)=>{
+                    //this.__closeDrodDowns($(e.target));
+                }
+            });
+        }
+    
+        confirm(){
+            this.widget.submit();
+        }
+    
+        __closeDrodDowns(target=null){
+            var fields = this.widget.fields;
+            for(var i in fields){
+                var fld = fields[i];
+                var data = fld.data('jqxWidget');            
+                if(!data) continue;
+                if(data.widgetName === 'jqxDropDownButton'){
+                    fld.jqxDropDownButton('close');
+                }
             }
         }
     }
-}
+})
+
+MasterWidget.register([MasterForm, MasterModelForm, MasterForm2]);

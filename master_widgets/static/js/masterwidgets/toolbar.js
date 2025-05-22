@@ -1,4 +1,4 @@
-$.use(['jqxbuttons', 'jqxpanel', 'jqxdropdownlist', 'jqxcheckbox'], JQX_JS_URL);
+$.use('jqx.jqxbuttons', 'jqx.jqxpanel', 'jqx.jqxdropdownlist', 'jqx.jqxcheckbox', 'jqx.jqxtoolbar');
 
 TOOL_PATTERNS = {
     'icon': {'type': 'string', 'required': false}, 
@@ -114,3 +114,5 @@ class MasterToolbar extends MasterWidget{
         return input;
     }
 };
+
+MasterWidget.register(MasterToolbar);

@@ -1,6 +1,6 @@
-$.use(['jqxgrid', 'jqxgrid.filter','jqxgrid.sort','jqxgrid.selection', 
-	'jqxgrid.columnsresize', 'jqxgrid.pager', 'jqxscrollbar', 'jqxbuttons', 
-	'jqxdropdownlist', 'jqxlistbox', 'jqxcheckbox'], JQX_JS_URL).use('menu');
+$.use('jqx.jqxgrid', 'jqx.jqxgrid.filter','jqx.jqxgrid.sort','jqx.jqxgrid.selection', 
+	'jqx.jqxgrid.columnsresize', 'jqx.jqxgrid.pager', 'jqx.jqxscrollbar', 'jqx.jqxbuttons', 
+	'jqx.jqxdropdownlist', 'jqx.jqxlistbox', 'jqx.jqxcheckbox', 'menu');
 
 class MasterGrid extends MasterWidget{
 	static get_sorting(sortinformation){

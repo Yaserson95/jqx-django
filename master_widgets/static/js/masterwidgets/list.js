@@ -1,4 +1,4 @@
-$.use(['jqxlistbox', 'jqxcheckbox', 'jqxinput'], JQX_JS_URL);
+$.use('jqx.jqxlistbox', 'jqx.jqxcheckbox', 'jqx.jqxinput', 'jqx.jqxbuttons', 'jqx.jqxscrollbar', 'paginator', 'model')
 
 class BaseMasterList extends MasterWidget{
     static getValueIndex(list, value){
@@ -23,10 +23,10 @@ class BaseMasterList extends MasterWidget{
         super.init(attrs);
     }
     render(){        
-        /*this.paginator = this.renderPaginator();
+        this.paginator = this.renderPaginator();
         this.paginator.on('changePage', (e)=>{
             this.onChangePage(e);
-        });*/
+        });
         this.searcher = this.renderSearch();
         super.render();
 
@@ -345,8 +345,8 @@ class MasterModelList extends BaseMasterList{
     }
 }
 
-$.include('inputs').then(()=>{
-    class MasterListInput extends MasterWidgetInput{
+$.extendWidget('inputs.WidgetInput', (MasterWidgetInput)=>{
+    return class MasterListInput extends MasterWidgetInput{
         init(attrs = {}){
             defaults(attrs, {
                 'contentHeight': 300,
@@ -397,7 +397,6 @@ $.include('inputs').then(()=>{
             super.__setValue(value);
         }
     }
-    MasterWidget.register(MasterListInput);
 });
 
 

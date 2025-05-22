@@ -1,6 +1,8 @@
 (jQuery)(function($){
-    if($.masterModel){
-        $.masterModel.base_url = "{{ models_url }}";
-        $.masterModel.set({{ models_info|safe }});
+    if($.masterWidget){
+        $.masterWidget.config({
+            'models_url': "{{ models_url }}",
+            'models': {{ models_info|safe }}
+        });
     }
 });

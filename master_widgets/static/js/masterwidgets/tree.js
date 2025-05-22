@@ -1,70 +1,73 @@
-class MasterTreeItemMenu extends MasterContextMenu{
-    open(e, root=false){
-        if(!root){
-            this.openItem(e);
-        }else{
-            this.openRoot(e);
-        }
-        super.open(e);
-    }
-
-    openItem(e){
-        //var item = $(this.current).parent()[0];
-        this.updateRules([true, true, true]);
-    }
-    openRoot(e){
-        //this.current_data = null;
-        this.updateRules([true, false, false]);
-    }
-
-    itemClick(e){
-        switch(e.args.data.action){
-            case 'create':
-                this.parent.openFormDialog({
-                    'type': e.args.data.item_type,
-                    'parent': $(this.current).parent()[0]
-                });
-                break;
-            case 'edit':
-                this.parent.openFormDialog($(this.current).parent()[0]);
-                break;
-        }
-        /*switch(e.args.data.action){
-            case 'create':
-                this.parent.openCreateDialog(e.args.data, this.current_data);
-                break;
-            case 'edit':
-                this.parent.openEditDialog(this.current_data);
-                break;
-            case 'remove':
-                this.parent.openRemoveDialog(this.current_data);
-                break;
-
-        }*/
-        return super.itemClick(e);
-    }
-
-    updateRules(rules){
-        var menu_items = this.target.find('ul > li').toArray();
-        for(var i in rules){
-            if(i > menu_items.length - 1) break;
-            this.jqx('disable', menu_items[i].id, !rules[i]);
-        }
-    }
-
-    onContextMenu(e){
-        if(!super.onContextMenu(e))
-            return false;
-
-        if($(this.parent.target).inParents(e.target)){
-            this.open(e, true);          
-            return false;
-        }
-        return true;
-    }
-}
+$.use('jqx.jqxtree','menu', 'form');
 
 class BaseMasterTree extends MasterWidget{
+    static get ItemMenu(){
+        return class extends MasterContextMenu{
+            open(e, root=false){
+                if(!root){
+                    this.openItem(e);
+                }else{
+                    this.openRoot(e);
+                }
+                super.open(e);
+            }
+        
+            openItem(e){
+                //var item = $(this.current).parent()[0];
+                this.updateRules([true, true, true]);
+            }
+            openRoot(e){
+                //this.current_data = null;
+                this.updateRules([true, false, false]);
+            }
+        
+            itemClick(e){
+                switch(e.args.data.action){
+                    case 'create':
+                        this.parent.openFormDialog({
+                            'type': e.args.data.item_type,
+                            'parent': $(this.current).parent()[0]
+                        });
+                        break;
+                    case 'edit':
+                        this.parent.openFormDialog($(this.current).parent()[0]);
+                        break;
+                }
+                /*switch(e.args.data.action){
+                    case 'create':
+                        this.parent.openCreateDialog(e.args.data, this.current_data);
+                        break;
+                    case 'edit':
+                        this.parent.openEditDialog(this.current_data);
+                        break;
+                    case 'remove':
+                        this.parent.openRemoveDialog(this.current_data);
+                        break;
+        
+                }*/
+                return super.itemClick(e);
+            }
+        
+            updateRules(rules){
+                var menu_items = this.target.find('ul > li').toArray();
+                for(var i in rules){
+                    if(i > menu_items.length - 1) break;
+                    this.jqx('disable', menu_items[i].id, !rules[i]);
+                }
+            }
+        
+            onContextMenu(e){
+                if(!super.onContextMenu(e))
+                    return false;
+        
+                if($(this.parent.target).inParents(e.target)){
+                    this.open(e, true);          
+                    return false;
+                }
+                return true;
+            }
+        }        
+    }
     /**
      * 
      * @param {object} data 
@@ -88,7 +91,7 @@ class BaseMasterTree extends MasterWidget{
             'types': {'type': 'array',},
             'mainType': {'type': 'number', 'default': 0, 'name':'main_type'},
             'showItemsMenu': {'type': 'boolean', 'default': true, 'name':'show_menu'},
-            'itemsMenuClass': {'type': 'function', 'default': MasterTreeItemMenu, 'name': 'items_menu_class'}
+            'itemsMenuClass': {'type': 'function', 'default': BaseMasterTree.ItemMenu, 'name': 'items_menu_class'}
 		});
 	}
 
@@ -407,7 +410,7 @@ class MasterModelTree extends BaseMasterTree{
         var form_target = $('<div/>', {'id': `${this.jqx_target.attr('id')}form${index}`})
                 .appendTo(this.target);
         type_info.model = MasterModel.getByName(type_info.class_name);
-        type_info.form_dialog = new MasterFormDialog(form_target,{
+        type_info.form_dialog = new $.masterWidget.FormDialog(form_target,{
             'parent':this,
             'title': 'Форма заполнения объекта БД',
             'model': type_info.model
@@ -540,3 +543,5 @@ class MasterModelTree extends BaseMasterTree{
         }
     }
 }
+
+MasterWidget.register([MasterTree, MasterModelTree]);

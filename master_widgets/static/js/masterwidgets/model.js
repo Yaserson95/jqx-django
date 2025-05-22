@@ -470,5 +470,7 @@ class MasterModel{
 }
 
 (jQuery)(function($){
+    MasterModel.base_url = $.masterWidget.option('models_url');
+    MasterModel.set($.masterWidget.option('models'));
     $.masterModel = MasterModel;
 });

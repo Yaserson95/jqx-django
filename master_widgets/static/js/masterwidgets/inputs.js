@@ -132,3 +132,5 @@ class MasterWidgetInput extends MasterWidget{
         else this.clear_button.show();
     }
 }
+
+MasterWidget.register(MasterWidgetInput);

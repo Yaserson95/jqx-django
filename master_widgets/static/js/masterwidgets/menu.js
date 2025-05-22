@@ -1,4 +1,4 @@
-$.use(['jqxmenu', 'jqxcheckbox'], JQX_JS_URL);
+$.use('jqx.jqxmenu', 'jqx.jqxcheckbox');
 
 class MasterMenu extends MasterWidget{
     static getItemType(item_data){

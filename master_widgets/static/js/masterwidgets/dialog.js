@@ -1,4 +1,3 @@
-//$.use(JQX_JS_URL);
 const allowedWindowOptions = [
     'width', 'height', 'title', 'position', 'draggable', 'resizable',
     'modal', 'autoOpen', 'showCloseButton', 'initContent', 'theme',
@@ -9,6 +8,8 @@ const allowedWindowOptions = [
     'enableSizeAnimation', 'animationDuration', 'showAnimationDuration',
     'closeAnimationDuration', 'focus', 'disabled', 'selectionMode'
 ];
+
+$.use('jqx.jqxwindow');
 
 class MasterDialog extends MasterWidget{
     widgetOptionsPatterns(patterns={}){

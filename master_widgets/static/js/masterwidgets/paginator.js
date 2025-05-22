@@ -1,6 +1,5 @@
-
-$.include(['toolbar']).then(()=>{
-    class MasterPaginator extends MasterToolbar{
+$.extendWidget('toolbar.Toolbar', (MasterToolbar)=>{
+    return class MasterPaginator extends MasterToolbar{
         widgetOptionsPatterns(patterns = {}) {
             return super.widgetOptionsPatterns({
                 'page': {'type': 'number', 'default': 1},
@@ -134,6 +133,4 @@ $.include(['toolbar']).then(()=>{
             }
         }
     }
-    
-    MasterWidget.register(MasterPaginator);
 });

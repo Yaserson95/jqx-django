@@ -1,6 +1,11 @@
 (jQuery)(function($){
-    $(document).ready(()=>{
-        if($.masterWidget)
-            $.masterWidget.theme = 'material-purple';
-    });
+    async function wgt(){
+        await $.loadModules();
+        var wgt = new MasterWidget($('#test-widget'), {'width': 400, 'height': 400});
+        return wgt;
+    }
+
+    $.masterWidget.option('theme', 'material-purple');
+    
+    //wgt();
 });

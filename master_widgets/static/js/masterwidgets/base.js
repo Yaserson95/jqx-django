@@ -4,7 +4,12 @@ const MASTER_JS_URL = "/static/js/masterwidgets/";
 const JQX_JS_URL = "/static/js/jqx/";
 
 class MasterUse{
-	__pathes = [];
+	__pathes = {};
+	load_proc = null;
+	constructor(base_path){
+		this.addPath('base', base_path);
+	}
+
 	static prepareJS(url){
 		var scriptTag = document.createElement('script');
 		var prm = new Promise((resolve, reject)=>{
@@ -26,7 +31,8 @@ class MasterUse{
 	static createPath(path){
 		return {
 			'path': path,
-			'names': {},
+			'new_modules': [],
+			'modules': {},
 			'add': function(name){
 				if(Array.isArray(name)){
 					var n = [];
@@ -35,69 +41,108 @@ class MasterUse{
 					}
 					return n;
 				}
-				if(this.names[name] === undefined){
+				if(this.modules[name] === undefined){
 					var scriptName = `${this.path}${name}.js`;
 					var tag_opts = MasterUse.prepareJS(scriptName);
-					this.names[name] = {'tag': tag_opts[0], 'promise': tag_opts[1]};
+					this.modules[name] = {'tag': tag_opts[0], 'promise': tag_opts[1]};
+					this.new_modules.push(name);
 				}
-				return {...this.names[name], 'name':name};
+				return {...this.modules[name], 'name':name};
 			},
 			'getPromises': function(){
 				var promises = [];
-				for(var i in this.names){
-					promises.push(this.names[i].promise);
+				for(var i in this.modules){
+					promises.push(this.modules[i].promise);
 				}
 				return promises;
 			},
 			'start': async function(name, location){
-				if(!(this.names[name].loaded || this.names[name].in_process)){
-					this.names[name].in_process = true;
-					location.appendChild(this.names[name].tag);
+				if(!(this.modules[name].loaded || this.modules[name].in_process)){
+					this.modules[name].in_process = true;
+					location.appendChild(this.modules[name].tag);
 				}
-				await this.names[name].promise;
-				this.names[name].loaded = true;
-				this.names[name].in_process = false;
+				await this.modules[name].promise;
+				this.modules[name].loaded = true;
+				this.modules[name].in_process = false;
 			},
 			'loadAll': async function(location){
-				for(var i in this.names){
-					await this.start(i, location);
+				var mod_names = this.new_modules;
+				this.new_modules = [];
+				for(var i in mod_names){
+					await this.start(mod_names[i], location);
+				}
+				if(!this.loaded()){
+					await this.loadAll(location);
 				}
 			},
 			'load': function(name, location){
 				this.add(name);
 				return this.start(name, location);
+			},
+			'loaded': function(){
+				return this.new_modules.length === 0;
 			}
 		};
 	}
 
-	pathIndexOf(path){
-		for(var i in this.__pathes){
-			if(this.__pathes[i].path === path) return i;
-		}
-		return -1;
+	static getPath(system_path){
+		var pos = system_path.indexOf('.');
+		if(pos === -1)
+			return ['base', system_path];
+		else
+			return [system_path.substring(0, pos), system_path.substring(pos+1)];
 	}
 
-	async loadAll(){
-		for(var i in this.__pathes){
-			await this.__pathes[i].loadAll(document.head);
-		}
-	}
-	load(name, path){
-		var path_index = this.pathIndexOf(path);
-		if(path_index === -1){
-			path_index = this.__pathes.length;
-			this.add(name, path);
-		}
-		return this.__pathes[path_index].load(name, document.head);
+	loadAll(){
+		if(this.load_proc !== null)
+			return this.load_proc;
+
+		this.load_proc = new Promise(async(resolve)=>{
+			for(var i in this.__pathes){
+				var path = this.__pathes[i];
+				await path.loadAll(document.head);
+			}
+			resolve();
+		});
+		return this.load_proc;
 	}
 
-	add(name, base_path){
-		var path_index = this.pathIndexOf(base_path);
-		if(path_index === -1){
-			path_index = this.__pathes.length;
-			this.__pathes.push(MasterUse.createPath(base_path))
+	load(system_path){
+		var module, pathname;
+		[pathname, module] = MasterUse.getPath(system_path);
+		this.add(system_path);
+
+		return this.__pathes[pathname].load(module, document.head);
+	}
+
+	addPath(name, path){
+		this.__pathes[name] = MasterUse.createPath(path);
+		return this;
+	}
+
+	add(system_path){
+		if(Array.isArray(system_path)){
+			for(var i in system_path) 
+				this.add(system_path[i]);
+			return this;
 		}
-		this.__pathes[path_index].add(name);
+		var module, pathname;
+		[pathname, module] = MasterUse.getPath(system_path);
+
+		//console.log(pathname, module);
+		this.getPath(pathname).add(module);
+		return this;
+	}
+	getPath(name){
+		if(!this.__pathes[name])
+			throw new Error(`Path '${pathname}' is not defined`);
+
+		return this.__pathes[name];
+	}
+	getModule(system_path){
+		var module, pathname;
+		[pathname, module] = MasterUse.getPath(system_path);
+		return this.getPath(pathname).add(module);
 	}
 }
 
@@ -168,12 +213,12 @@ class MasterWidget{
 	static addStyleClasses(target, obj){
 		if(!obj instanceof this)
 			return;
-
 		var prot = obj.constructor;
-		do{
-            target.addClass(camelToKebab(prot.name));
-            prot = Object.getPrototypeOf(prot);
-        }while(prot && prot !== this);
+		while(prot){
+			if(prot.name) target.addClass(camelToKebab(prot.name));
+			if(prot === this) break;
+			prot = Object.getPrototypeOf(prot);
+		}
 	}
 
 	static autoID(widget){
@@ -188,11 +233,9 @@ class MasterWidget{
      * @param {object} options - Configuration options
      */
 	constructor(target, options){
-		$.loadModules().then(()=>{
-			this.target = this.initTarget($(target));
-			this.init(options);
-				if(this.autorender)	this.render();
-		});
+		this.target = this.initTarget($(target));
+		this.init(options);
+			if(this.autorender)	this.render();
 	}
 
 	/**
@@ -233,6 +276,10 @@ class MasterWidget{
 
 		this.__loader = null;
 		this.attrs = {...this.attrs, ...options};
+
+		if(this.theme !== 'base'){
+			this.target.addClass(this.theme);
+		}
 	}
 
 	/**
@@ -246,6 +293,7 @@ class MasterWidget{
 		if(target.length === 0)
 			throw new Error('Target element is not correct');
 
+		//MasterWidget styles
 		MasterWidget.addStyleClasses(target, this);
 		//target.addClass('master-widget ' + camelToKebab(this.constructor.name));
 		//if this.theme
@@ -288,6 +336,8 @@ class MasterWidget{
 	jqx(...args){
 		if(typeof this.jqx_type !== 'string')
 			return;
+		if($.fn[this.jqx_type] === undefined)
+			throw new Error(`Element ${this.jqx_type} is not defined`);
 		return this.jqx_target[this.jqx_type](...args);
 	}
 	/**
@@ -400,15 +450,15 @@ class MasterWidget{
 	}
 
 	get jqx_width(){
-		return this.__jqx_widget? '100%': this.width;
+		return (this.__jqx_widget!==undefined)? '100%': this.width;
 	}
 
 	get jqx_height(){
-		return this.__jqx_widget? '100%': this.height;
+		return (this.__jqx_widget!==undefined)? '100%': this.height;
 	}
 
 	set width(width){
-		this.__setSize('width', width);
+		this.target.css('width', width);
 	}
 	
 	get width(){
@@ -416,24 +466,11 @@ class MasterWidget{
 	}
 
 	set height(height){
-		this.__setSize('height', height);
+		this.target.css('height', height);
 	}
 
 	get height(){
 		return this.__height;
-	}
-
-	__setSize(dem, size){
-		const sz = `__${dem}`;
-		this[sz] = (typeof size === 'number')? `${size}px`: size;
-		if(this.__jqx_widget)
-			this.__jqx_widget.css(dem, this[sz]);
-
-		if(this.target.data('masterWidget')){
-			var upd = {};
-			upd[dem] = this[sz];
-			this.jqx(upd);
-		}
 	}
 };
 
@@ -495,7 +532,6 @@ class MasterLoadedWidget extends MasterWidget{
 
 //Mixins
 
-
 class MasterModelLoader{
 	constructor(widget){
 		this.widget = widget;
@@ -556,54 +592,95 @@ class MasterModelLoader{
 	}
 }
 
+
 (jQuery)(function($){
 	var val_func = $.fn.val;
-	var modules = new MasterUse();
+	var config = {
+		set theme(theme){
+			MasterWidget.theme = theme;
+		},
+		get theme(){
+			return MasterWidget.theme;
+		},
+		'models_url': '/modules/',
+		'models': {},
+		'jqx_theme_path':'/static/css/jqx/',
+	};
+	var modules = new MasterUse(MASTER_JS_URL);
+	modules.addPath('jqx', JQX_JS_URL);
 
-	function getWidgetByName(name, target, attrs){
+	/**
+	 * 
+	 * @param {string} class_path 
+	 */
+	function widgetModule(class_path){
+		var pos = class_path.lastIndexOf('.');
+		if(pos === -1)
+			return [null, class_path];
+		return [class_path.substring(0, pos), class_path.substring(pos+1)];
+	}
+
+	function getClassByName(name){
 		var cls = $.masterWidget[name];
 		if(cls === undefined)
 			throw new Error(`Widget '${name}' is not defined`);
+		return cls;
+	}
+
+	function getWidgetByName(name, target, attrs){
+		var cls = getClassByName(name);
 
 		if(target === undefined) return cls;
 		return new cls(target, attrs);
 	}
 
-	$.use = function(script, base_url=MASTER_JS_URL){
-		modules.add(script, base_url);
-		return this;
+	$.extend({
+		'use': function(...patches){
+			modules.add(patches);
+			return this;
+		},
+		'extendWidget': function(class_path, callback){
+			var module_name, class_name, module;
+			[module_name, class_name] = widgetModule(class_path);
+			
+			if(module_name === null) module_name = 'base';
+			module = modules.getModule(module_name);
+			module.promise.then(()=>{
+				MasterWidget.register(callback(getClassByName(class_name)));
+			});
+			return module.promise;
+		},
+		'loadModules':function(){
+			return modules.loadAll();
+		},
+		'include':function(module_path){
+			return modules.load(module_path);
+		},
+		'masterWidget':async function(name, target, attrs={}){
+			var module_path, class_name;
+			if(name === undefined) 
+				return MasterWidget;
+
+			[module_path, class_name] = widgetModule(name);
+			this.use(module_path);
+			await modules.loadAll();			
+			return getWidgetByName(class_name, target, attrs);
+		}
+	});
+
+	$.masterWidget.config = function(conf){
+		for(var i in conf){
+			config[i] = conf[i];
+		}
+	}
+	$.masterWidget.option = function(name, val){
+		if(val!==undefined){
+			config[name] = val;
+			return;
+		}
+		return config[name] !== undefined? config[name]: null;
 	}
 
-	$.include = function(name, base_url=MASTER_JS_URL){
-		return modules.load(name, base_url);
-	}
-
-	$.loadModules = function(){
-		return modules.loadAll();
-	}
-
-	$.masterWidget = function(name, target, attrs={}){
-		if(name === undefined) return MasterWidget;
-		var cls_path = name.split('.');
-		return new Promise((resolve, reject)=>{
-			if(cls_path.length === 1)
-				return getWidgetByName(name, target, attrs);
-			else if(cls_path.length === 2){
-				$.use(cls_path[0]).loadModules().then(()=>{
-					try{
-						resolve(getWidgetByName(cls_path[1], target, attrs));
-					}catch(e){
-						reject(e);
-					}
-				});
-			}else{
-				reject(Error('Uncorrected widget name'));
-			}
-		}).catch((e)=>{
-			console.error(e);
-		});
-	}
-	
 	$.fn.extend({
 		'sval': val_func,
 		'inParents': function(elem){
